@@ -1,35 +1,20 @@
-use std::io::stdout;
+use crossterm::{event, Result};
+use screen::Screen;
 
-use crossterm::{
-    cursor, event, execute, style,
-    terminal::{self, enable_raw_mode},
-    Result,
-};
+mod buffer;
+mod screen;
 
 // TODO list:
-// - Data structure for keybinds, so that no nested match tree and also user customization
-// - Edit modes (for now, Normal, Insert, and Command)
-// - Data structure for text so that you aren't allowed to move cursor off of text
-// - Scroll
+// [ ] Data structure for keybinds, so that no nested match tree and also user customization
+// [ ] Edit modes (for now, Normal, Insert, and Command)
+// [x] Data structure for text so that you aren't allowed to move cursor off of text
+// [ ] Scroll
+// [ ] Files (async for stream stuff?)
 
 fn main() -> Result<()> {
-    enable_raw_mode()?;
+    let mut screen = Screen::new()?;
 
-    execute!(
-        stdout(),
-        // style::SetBackgroundColor(style::Color::DarkGrey),
-        terminal::EnterAlternateScreen,
-        cursor::MoveTo(0, 0),
-        style::Print("hey"),
-    )?;
-
-    // execute!(
-    //     stdout(),
-    //     SetForegroundColor(Color::Blue),
-    //     SetBackgroundColor(Color::Red),
-    //     Print("Styled text here."),
-    //     ResetColor
-    // )?;
+    screen.load_text("this is a file\n\nwith\nmultiple lines")?;
 
     loop {
         match event::read()? {
@@ -37,10 +22,10 @@ fn main() -> Result<()> {
                 // TODO: data structure with all these
                 if let event::KeyCode::Char(c) = key_event.code {
                     match c {
-                        'h' => execute!(stdout(), cursor::MoveLeft(1))?,
-                        'j' => execute!(stdout(), cursor::MoveDown(1))?,
-                        'k' => execute!(stdout(), cursor::MoveUp(1))?,
-                        'l' => execute!(stdout(), cursor::MoveRight(1))?,
+                        'h' => screen.move_cursor(-1, 0)?,
+                        'j' => screen.move_cursor(0, 1)?,
+                        'k' => screen.move_cursor(0, -1)?,
+                        'l' => screen.move_cursor(1, 0)?,
                         'c' => {
                             if key_event.modifiers == event::KeyModifiers::CONTROL {
                                 break;
@@ -54,5 +39,5 @@ fn main() -> Result<()> {
         }
     }
 
-    execute!(stdout(), terminal::LeaveAlternateScreen)
+    screen.finish()
 }
