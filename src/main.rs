@@ -9,12 +9,22 @@ mod screen;
 // [ ] Edit modes (for now, Normal, Insert, and Command)
 // [x] Data structure for text so that you aren't allowed to move cursor off of text
 // [ ] Scroll
-// [ ] Files (async for stream stuff?)
+// [x] Files
+// [ ] (async for stream stuff? or at least buffered read?)
+// [ ] Is there a way to gracefully exit on panic?
+// [ ] Line numbers
+// [ ] editing
+// [ ] unit tests?
+// [ ] splits/windows
 
 fn main() -> Result<()> {
     let mut screen = Screen::new()?;
 
-    screen.load_text("this is a file\n\nwith\nmultiple lines")?;
+    let mut args = std::env::args();
+    let _ = args.next().unwrap();
+    if let Some(filename) = args.next() {
+        screen.load_file(filename)?;
+    }
 
     loop {
         match event::read()? {

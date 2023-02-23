@@ -11,17 +11,17 @@ use crossterm::{
 
 use crate::buffer::{self, Buffer};
 
-pub struct Screen<'a> {
+pub struct Screen {
     // TODO: this isn't really true right b/c of splits? implement `active_buf_idx` and `buffers`
     // as Vec? Or repurpose this as window and move screen logic to new class that only does the
     // setup stuff
-    buffer: Buffer<'a>,
+    buffer: Buffer,
 
     /// (row, col)
     cursor: (usize, usize),
 }
 
-impl<'a> Screen<'a> {
+impl Screen {
     fn setup() -> Result<()> {
         enable_raw_mode()?;
 
@@ -54,7 +54,7 @@ impl<'a> Screen<'a> {
 
     /// Moves cursor `rl` to the right (negative goes left) and `du` down if allowed
     pub fn move_cursor(&mut self, rl: isize, du: isize) -> Result<()> {
-        let (row, col) = if self.buffer.len() == 0 {
+        let (row, col) = if self.buffer.is_empty() {
             (0, 0)
         } else {
             let normalize = |n| if n == 0 { 0 } else { n - 1 };
@@ -74,8 +74,7 @@ impl<'a> Screen<'a> {
         self.set_cursor(row, col)
     }
 
-    pub fn load_text(&mut self, text: &'a str) -> Result<()> {
-        self.buffer = buffer::parse_text(text);
+    fn write_buffer(&mut self) -> Result<()> {
         for line in &self.buffer {
             execute!(
                 stdout(),
@@ -84,6 +83,12 @@ impl<'a> Screen<'a> {
                 cursor::MoveDown(1)
             )?;
         }
+        Ok(())
+    }
+
+    pub fn load_file(&mut self, filename: String) -> Result<()> {
+        self.buffer = buffer::parse_file(filename);
+        self.write_buffer()?;
         self.set_cursor(0, 0)
     }
 }

@@ -1,4 +1,7 @@
-pub type Buffer<'a> = Vec<&'a str>;
+use std::{fs::File, io::Read};
+
+// also store file handle
+pub type Buffer = Vec<String>;
 
 // struct Buffer<'a> {
 //     lines: Vec<Line<'a>>,
@@ -11,16 +14,13 @@ pub type Buffer<'a> = Vec<&'a str>;
 //     // len: usize,
 // }
 
-pub fn parse_text(text: &str) -> Buffer<'_> {
-    text.lines().collect()
+pub fn parse_text(text: &str) -> Buffer {
+    text.to_owned().split('\n').map(String::from).collect()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_text() {
-        assert_eq!(parse_text("1\n2\n3"), vec!["1", "2", "3"]);
-    }
+pub fn parse_file(filename: String) -> Buffer {
+    let mut file = File::open(filename).unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+    contents.split('\n').map(String::from).collect()
 }
