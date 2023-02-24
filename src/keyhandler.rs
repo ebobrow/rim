@@ -3,10 +3,11 @@ use crossterm::{
     Result,
 };
 
-use crate::state::State;
+use crate::state::{Mode, State};
 
 type KeymapFn = Box<dyn Fn(&mut State) -> Result<()>>;
 
+// TODO: mode
 pub struct Keymap {
     key: char,
     modifiers: KeyModifiers,
@@ -52,12 +53,22 @@ impl Keymap {
 pub fn watch(state: &mut State) -> Result<()> {
     loop {
         if let Event::Key(key_event) = event::read()? {
-            if let Some(keymap) = state
-                .keymaps()
-                .iter()
-                .find(|keymap| keymap.matches(key_event))
-            {
-                keymap.call(state)?;
+            if state.mode() == &Mode::Insert {
+                if let KeyCode::Char(c) = key_event.code {
+                    state.screen_mut().type_char(c)?;
+                } else if let KeyCode::Esc = key_event.code {
+                    // TODO: this should be a keymap
+                    state.set_mode(Mode::Normal);
+                    state.screen_mut().move_cursor(-1, 0)?;
+                }
+            } else {
+                if let Some(keymap) = state
+                    .keymaps()
+                    .iter()
+                    .find(|keymap| keymap.matches(key_event))
+                {
+                    keymap.call(state)?;
+                }
             }
         }
     }

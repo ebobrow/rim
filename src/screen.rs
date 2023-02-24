@@ -86,9 +86,25 @@ impl Screen {
         Ok(())
     }
 
+    fn reprint_line(&mut self) -> Result<()> {
+        execute!(
+            stdout(),
+            cursor::MoveToColumn(0),
+            style::Print(&self.buffer[self.cursor.0]),
+            cursor::MoveToColumn(self.cursor.1 as u16),
+        )
+    }
+
     pub fn load_file(&mut self, filename: String) -> Result<()> {
         self.buffer = buffer::parse_file(filename);
         self.write_buffer()?;
         self.set_cursor(0, 0)
+    }
+
+    // TODO: one char at a time is definitely not right
+    pub fn type_char(&mut self, c: char) -> Result<()> {
+        buffer::add_char(&mut self.buffer, c, self.cursor.0, self.cursor.1);
+        self.move_cursor(1, 0)?;
+        self.reprint_line()
     }
 }

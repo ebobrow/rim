@@ -24,3 +24,7 @@ pub fn parse_file(filename: String) -> Buffer {
     file.read_to_string(&mut contents).unwrap();
     contents.split('\n').map(String::from).collect()
 }
+
+pub fn add_char(buf: &mut Buffer, c: char, row: usize, col: usize) {
+    buf[row].insert(col, c);
+}
