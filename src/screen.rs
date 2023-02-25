@@ -72,9 +72,10 @@ impl Screen {
 
     fn write_buffer(&mut self) -> Result<()> {
         for line in self.buffer.lines() {
+            let padding = " ".repeat(terminal::size().unwrap().0 as usize - line.len());
             execute!(
                 stdout(),
-                style::Print(line),
+                style::Print(format!("{line}{padding}")),
                 cursor::MoveToColumn(0),
                 cursor::MoveDown(1)
             )?;
@@ -83,10 +84,12 @@ impl Screen {
     }
 
     fn reprint_line(&mut self) -> Result<()> {
+        let line = self.buffer.nth_line(self.buffer.cursor_row());
+        let padding = " ".repeat(terminal::size().unwrap().0 as usize - line.len());
         execute!(
             stdout(),
             cursor::MoveToColumn(0),
-            style::Print(&self.buffer.nth_line(self.buffer.cursor_row())),
+            style::Print(format!("{line}{padding}")),
             cursor::MoveToColumn(self.buffer.cursor_col() as u16),
         )
     }
@@ -101,9 +104,17 @@ impl Screen {
 
     // TODO: one char at a time is definitely not right
     pub fn type_char(&mut self, c: char) -> Result<()> {
-        // buffer::add_char(&mut self.buffer, c, self.cursor.0, self.cursor.1);
         self.buffer.add_char(c);
         self.move_cursor(1, 0)?;
+        self.reprint_line()
+    }
+
+    pub fn delete_chars(&mut self, n: usize) -> Result<()> {
+        for _ in 0..n {
+            self.buffer.delete_char();
+            self.move_cursor(-1, 0)?;
+        }
+        // TODO: what if we move to the prev line
         self.reprint_line()
     }
 }

@@ -38,6 +38,10 @@ impl Buffer {
         self.lines[self.cursor.0].insert(self.cursor.1, c);
     }
 
+    pub fn delete_char(&mut self) {
+        self.lines[self.cursor.0].remove(self.cursor.1 - 1);
+    }
+
     /// Moves cursor `rl` to the right (negative goes left) and `du` down if allowed
     pub fn move_cursor(&mut self, rl: isize, du: isize) {
         self.cursor = if self.lines.is_empty() {
