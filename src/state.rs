@@ -1,10 +1,13 @@
-use std::{process::exit, rc::Rc};
+use std::{collections::HashMap, process::exit, rc::Rc};
 
-use crossterm::{event::KeyModifiers, Result};
+use crossterm::Result;
 
-use crate::{keyhandler::Keymap, screen::Screen};
+use crate::{
+    keys::keyhandler::{new_keymap_trie, KeymapTrie},
+    screen::Screen,
+};
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq, Hash)]
 pub enum Mode {
     Normal,
     Insert,
@@ -12,7 +15,10 @@ pub enum Mode {
 
 pub struct State {
     screen: Screen,
-    keymaps: Rc<Vec<Keymap>>,
+    keymaps: Rc<HashMap<Mode, KeymapTrie>>,
+
+    // TODO: store as &[u8] ?
+    current_key_event: String,
     mode: Mode,
 }
 
@@ -21,19 +27,49 @@ impl State {
         Ok(Self {
             screen: Screen::new()?,
             mode: Mode::Normal,
+            current_key_event: String::new(),
             // TODO: macro for this?
-            keymaps: Rc::new(vec![
-                Keymap::char('h', Box::new(|state| state.screen_mut().move_cursor(-1, 0))),
-                Keymap::char('j', Box::new(|state| state.screen_mut().move_cursor(0, 1))),
-                Keymap::char('k', Box::new(|state| state.screen_mut().move_cursor(0, -1))),
-                Keymap::char('l', Box::new(|state| state.screen_mut().move_cursor(1, 0))),
-                Keymap::char_with_mods(
-                    'c',
-                    vec![KeyModifiers::CONTROL],
-                    Box::new(|state| state.finish()),
+            keymaps: Rc::new(HashMap::from([
+                (
+                    Mode::Normal,
+                    new_keymap_trie(vec![
+                        (
+                            "h".to_string(),
+                            Box::new(|state| state.screen_mut().move_cursor(-1, 0)),
+                        ),
+                        (
+                            "j".to_string(),
+                            Box::new(|state| state.screen_mut().move_cursor(0, 1)),
+                        ),
+                        (
+                            "k".to_string(),
+                            Box::new(|state| state.screen_mut().move_cursor(0, -1)),
+                        ),
+                        (
+                            "l".to_string(),
+                            Box::new(|state| state.screen_mut().move_cursor(1, 0)),
+                        ),
+                        ("ZZ".to_string(), Box::new(|state| state.finish())),
+                        (
+                            "i".to_string(),
+                            Box::new(|state| {
+                                state.set_mode(Mode::Insert);
+                                Ok(())
+                            }),
+                        ),
+                    ]),
                 ),
-                Keymap::char('i', Box::new(|state| Ok(state.set_mode(Mode::Insert)))),
-            ]),
+                (
+                    Mode::Insert,
+                    new_keymap_trie(vec![(
+                        "jk".to_string(),
+                        Box::new(|state| {
+                            state.set_mode(Mode::Normal);
+                            state.screen_mut().move_cursor(-1, 0)
+                        }),
+                    )]),
+                ),
+            ])),
         })
     }
 
@@ -46,7 +82,7 @@ impl State {
         &mut self.screen
     }
 
-    pub fn keymaps(&self) -> Rc<Vec<Keymap>> {
+    pub fn keymaps(&self) -> Rc<HashMap<Mode, KeymapTrie>> {
         self.keymaps.clone()
     }
 
@@ -56,5 +92,17 @@ impl State {
 
     pub fn mode(&self) -> &Mode {
         &self.mode
+    }
+
+    pub fn current_key_event(&self) -> &str {
+        self.current_key_event.as_ref()
+    }
+
+    pub fn clear_current_key_event(&mut self) {
+        self.current_key_event = String::new();
+    }
+
+    pub fn append_current_key_event(&mut self, c: char) {
+        self.current_key_event.push(c);
     }
 }

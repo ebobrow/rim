@@ -1,15 +1,16 @@
 use crossterm::Result;
 
+use keys::keyhandler;
 use state::State;
 
 mod buffer;
-mod keyhandler;
+mod keys;
 mod screen;
 mod state;
 
 // TODO list:
 // [x] Data structure for keybinds, so that no nested match tree and also user customization
-// [ ] Multiple keys in a row (like <leader>f)
+// [x] Multiple keys in a row (like <leader>f)
 // [ ] Edit modes (for now, Normal, Insert, and Command)
 // [x] Data structure for text so that you aren't allowed to move cursor off of text
 // [ ] Scroll
