@@ -1,30 +1,81 @@
-use std::{fs::File, io::Read};
+use std::{
+    cmp::{max, min},
+    fs::File,
+    io::Read,
+    path::Path,
+};
 
-// also store file handle
-pub type Buffer = Vec<String>;
+pub struct Buffer {
+    lines: Vec<String>,
 
-// struct Buffer<'a> {
-//     lines: Vec<Line<'a>>,
-//     // len: usize,
-// }
+    /// (row, col)
+    cursor: (usize, usize),
 
-// struct Line<'a> {
-//     raw: &'a str,
-//     num: usize,
-//     // len: usize,
-// }
-
-pub fn parse_text(text: &str) -> Buffer {
-    text.to_owned().split('\n').map(String::from).collect()
+    handle: Option<File>,
 }
 
-pub fn parse_file(filename: String) -> Buffer {
-    let mut file = File::open(filename).unwrap();
-    let mut contents = String::new();
-    file.read_to_string(&mut contents).unwrap();
-    contents.split('\n').map(String::from).collect()
-}
+impl Buffer {
+    pub fn from_filepath<P: AsRef<Path>>(path: P) -> Self {
+        let mut file = File::open(path).unwrap();
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).unwrap();
+        Self {
+            lines: contents.split('\n').map(String::from).collect(),
+            cursor: (0, 0),
+            handle: Some(file),
+        }
+    }
 
-pub fn add_char(buf: &mut Buffer, c: char, row: usize, col: usize) {
-    buf[row].insert(col, c);
+    pub fn from_string(s: String) -> Self {
+        Self {
+            lines: s.split('\n').map(String::from).collect(),
+            cursor: (0, 0),
+            handle: None,
+        }
+    }
+
+    pub fn add_char(&mut self, c: char) {
+        self.lines[self.cursor.0].insert(self.cursor.1, c);
+    }
+
+    /// Moves cursor `rl` to the right (negative goes left) and `du` down if allowed
+    pub fn move_cursor(&mut self, rl: isize, du: isize) {
+        self.cursor = if self.lines.is_empty() {
+            (0, 0)
+        } else {
+            let normalize = |n| if n == 0 { 0 } else { n - 1 };
+
+            let row = min(
+                self.lines.len() - 1,
+                max(0, self.cursor.0 as isize + du) as usize,
+            );
+            (
+                row,
+                min(
+                    normalize(self.lines[row].len()),
+                    max(0, self.cursor.1 as isize + rl) as usize,
+                ),
+            )
+        };
+    }
+
+    pub fn zero_cursor(&mut self) {
+        self.cursor = (0, 0);
+    }
+
+    pub fn cursor_row(&self) -> usize {
+        self.cursor.0
+    }
+
+    pub fn cursor_col(&self) -> usize {
+        self.cursor.1
+    }
+
+    pub fn lines(&self) -> &[String] {
+        &self.lines
+    }
+
+    pub fn nth_line(&self, n: usize) -> &str {
+        &self.lines[n]
+    }
 }

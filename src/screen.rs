@@ -1,8 +1,4 @@
-use std::{
-    cmp::{max, min},
-    io::stdout,
-    panic,
-};
+use std::{io::stdout, panic};
 
 use crossterm::{
     cursor::{self, SetCursorStyle},
@@ -19,8 +15,8 @@ pub struct Screen {
     // setup stuff
     buffer: Buffer,
 
-    /// (row, col)
-    cursor: (usize, usize),
+    /// instead of storing a cursor, use the buffer's cursor but with offset for scroll
+    offset: usize,
 }
 
 impl Screen {
@@ -49,8 +45,8 @@ impl Screen {
 
         Ok(Self {
             // TODO: centered info screen
-            buffer: buffer::parse_text(""),
-            cursor: (0, 0),
+            buffer: Buffer::from_string(String::new()),
+            offset: 0,
         })
     }
 
@@ -58,36 +54,24 @@ impl Screen {
         execute!(stdout(), shape)
     }
 
-    /// Does not check bounds; use `move_cursor` for user input
-    fn set_cursor(&mut self, r: usize, c: usize) -> Result<()> {
-        self.cursor = (r, c);
-        execute!(stdout(), cursor::MoveTo(c as u16, r as u16))
+    fn reprint_cursor(&mut self) -> Result<()> {
+        execute!(
+            stdout(),
+            cursor::MoveTo(
+                self.buffer.cursor_col() as u16,
+                (self.buffer.cursor_row() + self.offset) as u16
+            )
+        )
     }
 
     /// Moves cursor `rl` to the right (negative goes left) and `du` down if allowed
     pub fn move_cursor(&mut self, rl: isize, du: isize) -> Result<()> {
-        let (row, col) = if self.buffer.is_empty() {
-            (0, 0)
-        } else {
-            let normalize = |n| if n == 0 { 0 } else { n - 1 };
-
-            let row = min(
-                self.buffer.len() - 1,
-                max(0, self.cursor.0 as isize + du) as usize,
-            );
-            (
-                row,
-                min(
-                    normalize(self.buffer[row].len()),
-                    max(0, self.cursor.1 as isize + rl) as usize,
-                ),
-            )
-        };
-        self.set_cursor(row, col)
+        self.buffer.move_cursor(rl, du);
+        self.reprint_cursor()
     }
 
     fn write_buffer(&mut self) -> Result<()> {
-        for line in &self.buffer {
+        for line in self.buffer.lines() {
             execute!(
                 stdout(),
                 style::Print(line),
@@ -102,20 +86,23 @@ impl Screen {
         execute!(
             stdout(),
             cursor::MoveToColumn(0),
-            style::Print(&self.buffer[self.cursor.0]),
-            cursor::MoveToColumn(self.cursor.1 as u16),
+            style::Print(&self.buffer.nth_line(self.buffer.cursor_row())),
+            cursor::MoveToColumn(self.buffer.cursor_col() as u16),
         )
     }
 
     pub fn load_file(&mut self, filename: String) -> Result<()> {
-        self.buffer = buffer::parse_file(filename);
+        self.buffer = Buffer::from_filepath(filename);
         self.write_buffer()?;
-        self.set_cursor(0, 0)
+        self.buffer.zero_cursor();
+        self.offset = 0;
+        self.reprint_cursor()
     }
 
     // TODO: one char at a time is definitely not right
     pub fn type_char(&mut self, c: char) -> Result<()> {
-        buffer::add_char(&mut self.buffer, c, self.cursor.0, self.cursor.1);
+        // buffer::add_char(&mut self.buffer, c, self.cursor.0, self.cursor.1);
+        self.buffer.add_char(c);
         self.move_cursor(1, 0)?;
         self.reprint_line()
     }

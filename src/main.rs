@@ -21,6 +21,9 @@ mod state;
 // [ ] editing
 // [ ] unit tests?
 // [ ] splits/windows
+// [ ] Status bar
+// [ ] internal dev thing but should all commands be routed through state? as in reexport so that
+//     you don't have to do `state.screen_mut().load_file()` but instead just `state.load_file()`?
 
 fn main() -> Result<()> {
     let mut state = State::init()?;
