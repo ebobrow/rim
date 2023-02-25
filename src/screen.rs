@@ -1,11 +1,13 @@
 use std::{
     cmp::{max, min},
     io::stdout,
+    panic,
 };
 
 use crossterm::{
-    cursor, execute, style,
-    terminal::{self, enable_raw_mode},
+    cursor::{self, SetCursorStyle},
+    execute, style,
+    terminal::{self, disable_raw_mode, enable_raw_mode},
     Result,
 };
 
@@ -24,15 +26,21 @@ pub struct Screen {
 impl Screen {
     fn setup() -> Result<()> {
         enable_raw_mode()?;
+        panic::set_hook(Box::new(|info| {
+            Self::finish().unwrap();
+            println!("{info}");
+        }));
 
         execute!(
             stdout(),
             terminal::EnterAlternateScreen,
-            cursor::MoveTo(0, 0)
+            cursor::MoveTo(0, 0),
+            cursor::SetCursorStyle::SteadyBlock,
         )
     }
 
-    pub fn finish(&self) -> Result<()> {
+    pub fn finish() -> Result<()> {
+        disable_raw_mode()?;
         execute!(stdout(), terminal::LeaveAlternateScreen)
     }
 
@@ -44,6 +52,10 @@ impl Screen {
             buffer: buffer::parse_text(""),
             cursor: (0, 0),
         })
+    }
+
+    pub fn set_cursor_shape(&mut self, shape: SetCursorStyle) -> Result<()> {
+        execute!(stdout(), shape)
     }
 
     /// Does not check bounds; use `move_cursor` for user input

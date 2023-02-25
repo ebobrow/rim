@@ -16,7 +16,7 @@ mod state;
 // [ ] Scroll
 // [x] Files
 // [ ] (async for stream stuff? or at least buffered read?)
-// [ ] Is there a way to gracefully exit on panic?
+// [x] Is there a way to gracefully exit on panic?
 // [ ] Line numbers
 // [ ] editing
 // [ ] unit tests?

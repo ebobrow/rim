@@ -1,6 +1,6 @@
 use std::{collections::HashMap, process::exit, rc::Rc};
 
-use crossterm::Result;
+use crossterm::{cursor::SetCursorStyle, Result};
 
 use crate::{
     keys::keyhandler::{new_keymap_trie, KeymapTrie},
@@ -49,32 +49,23 @@ impl State {
                             "l".to_string(),
                             Box::new(|state| state.screen_mut().move_cursor(1, 0)),
                         ),
-                        ("ZZ".to_string(), Box::new(|state| state.finish())),
-                        (
-                            "i".to_string(),
-                            Box::new(|state| {
-                                state.set_mode(Mode::Insert);
-                                Ok(())
-                            }),
-                        ),
+                        ("ZZ".to_string(), Box::new(|_| State::finish())),
+                        ("i".to_string(), Box::new(|state| state.enter_insert_mode())),
                     ]),
                 ),
                 (
                     Mode::Insert,
                     new_keymap_trie(vec![(
                         "jk".to_string(),
-                        Box::new(|state| {
-                            state.set_mode(Mode::Normal);
-                            state.screen_mut().move_cursor(-1, 0)
-                        }),
+                        Box::new(|state| state.enter_normal_mode()),
                     )]),
                 ),
             ])),
         })
     }
 
-    pub fn finish(&mut self) -> Result<()> {
-        self.screen.finish()?;
+    pub fn finish() -> Result<()> {
+        Screen::finish()?;
         exit(0);
     }
 
@@ -84,10 +75,6 @@ impl State {
 
     pub fn keymaps(&self) -> Rc<HashMap<Mode, KeymapTrie>> {
         self.keymaps.clone()
-    }
-
-    pub fn set_mode(&mut self, mode: Mode) {
-        self.mode = mode;
     }
 
     pub fn mode(&self) -> &Mode {
@@ -104,5 +91,16 @@ impl State {
 
     pub fn append_current_key_event(&mut self, c: char) {
         self.current_key_event.push(c);
+    }
+
+    pub fn enter_insert_mode(&mut self) -> Result<()> {
+        self.mode = Mode::Insert;
+        self.screen.set_cursor_shape(SetCursorStyle::SteadyBar)
+    }
+
+    pub fn enter_normal_mode(&mut self) -> Result<()> {
+        self.mode = Mode::Normal;
+        self.screen.set_cursor_shape(SetCursorStyle::SteadyBlock)?;
+        self.screen.move_cursor(-1, 0)
     }
 }
