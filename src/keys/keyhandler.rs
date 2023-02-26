@@ -23,6 +23,10 @@ pub fn new_keymap_trie(maps: Vec<(String, KeymapFn)>) -> KeymapTrie {
 pub fn watch(state: &mut State) -> Result<()> {
     loop {
         // TODO: also something like jjk should still trigger `jk` map and type a j
+        //     - reverse Trie?? but then how do you judge potentially incomplete key events
+        //     - keymaps prolly aren't _that_ long--could just iterate through skipping the first
+        //       section and see if you hit anything and then recursively run the function on the
+        //       first part (up until the keymap that you found)
         if let Event::Key(key_event) = event::read()? {
             match state.mode() {
                 Mode::Normal => {
@@ -45,8 +49,9 @@ pub fn watch(state: &mut State) -> Result<()> {
                 }
                 Mode::Insert => {
                     // TODO: also clear current key event after like a second and don't move cursor
-                    // forward if current key event has something but then do move forward after
-                    // you clear it
+                    //       forward if current key event has something but then do move forward
+                    //       after you clear it
+                    //     - just like a timeout but I'm worried about race conditions
                     if let KeyCode::Char(c) = key_event.code {
                         state.append_current_key_event(c);
                         state.screen_mut().type_char(c)?;

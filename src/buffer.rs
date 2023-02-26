@@ -34,33 +34,16 @@ impl Buffer {
         }
     }
 
-    pub fn add_char(&mut self, c: char) {
-        self.lines[self.cursor.0].insert(self.cursor.1, c);
+    pub fn add_char(&mut self, c: char, offset: usize) {
+        self.lines[self.cursor.0 + offset].insert(self.cursor.1, c);
     }
 
-    pub fn delete_char(&mut self) {
-        self.lines[self.cursor.0].remove(self.cursor.1 - 1);
+    pub fn delete_char(&mut self, offset: usize) {
+        self.lines[self.cursor.0 + offset].remove(self.cursor.1 - 1);
     }
 
-    /// Moves cursor `rl` to the right (negative goes left) and `du` down if allowed
-    pub fn move_cursor(&mut self, rl: isize, du: isize) {
-        self.cursor = if self.lines.is_empty() {
-            (0, 0)
-        } else {
-            let normalize = |n| if n == 0 { 0 } else { n - 1 };
-
-            let row = min(
-                self.lines.len() - 1,
-                max(0, self.cursor.0 as isize + du) as usize,
-            );
-            (
-                row,
-                min(
-                    normalize(self.lines[row].len()),
-                    max(0, self.cursor.1 as isize + rl) as usize,
-                ),
-            )
-        };
+    pub fn set_cursor(&mut self, r: usize, c: usize) {
+        self.cursor = (r, c);
     }
 
     pub fn zero_cursor(&mut self) {

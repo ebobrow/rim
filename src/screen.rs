@@ -1,4 +1,8 @@
-use std::{io::stdout, panic};
+use std::{
+    cmp::{max, min},
+    io::stdout,
+    panic,
+};
 
 use crossterm::{
     cursor::{self, SetCursorStyle},
@@ -59,20 +63,66 @@ impl Screen {
             stdout(),
             cursor::MoveTo(
                 self.buffer.cursor_col() as u16,
-                (self.buffer.cursor_row() + self.offset) as u16
-            )
+                self.buffer.cursor_row() as u16
+            ),
+            cursor::Show
         )
     }
 
     /// Moves cursor `rl` to the right (negative goes left) and `du` down if allowed
     pub fn move_cursor(&mut self, rl: isize, du: isize) -> Result<()> {
-        self.buffer.move_cursor(rl, du);
-        self.reprint_cursor()
+        let (mut row, col) = if self.buffer.lines().is_empty() {
+            (0, 0)
+        } else {
+            let normalize = |n| if n == 0 { 0 } else { n - 1 };
+
+            let row = min(
+                self.buffer.lines().len() as isize - 1,
+                self.buffer.cursor_row() as isize + du,
+            );
+            (
+                row,
+                min(
+                    normalize(
+                        self.buffer
+                            .nth_line(max(row, 0) as usize + self.offset)
+                            .len(),
+                    ),
+                    max(0, self.buffer.cursor_col() as isize + rl) as usize,
+                ),
+            )
+        };
+        let term_height = Screen::rows() - 1;
+        let mut scrolled = false;
+        if row < 0 {
+            if self.offset > 0 {
+                let amt_under = (-row) as usize;
+                if self.offset < amt_under {
+                    self.offset = 0;
+                } else {
+                    self.offset -= amt_under;
+                }
+                scrolled = true;
+            }
+            row = 0;
+        } else if row as usize > term_height {
+            let amt_over = row as usize - term_height;
+            self.offset += amt_over;
+            row -= amt_over as isize;
+            scrolled = true;
+        }
+        self.buffer.set_cursor(row as usize, col);
+        self.reprint_cursor()?;
+        if scrolled {
+            self.print_buffer()?;
+        }
+        Ok(())
     }
 
-    fn write_buffer(&mut self) -> Result<()> {
-        for line in self.buffer.lines() {
-            let padding = " ".repeat(terminal::size().unwrap().0 as usize - line.len());
+    fn print_buffer(&mut self) -> Result<()> {
+        execute!(stdout(), cursor::Hide, cursor::MoveTo(0, 0))?;
+        for line in &self.buffer.lines()[self.offset..Screen::rows() + self.offset] {
+            let padding = " ".repeat(Screen::cols() - line.len());
             execute!(
                 stdout(),
                 style::Print(format!("{line}{padding}")),
@@ -80,12 +130,12 @@ impl Screen {
                 cursor::MoveDown(1)
             )?;
         }
-        Ok(())
+        self.reprint_cursor()
     }
 
     fn reprint_line(&mut self) -> Result<()> {
-        let line = self.buffer.nth_line(self.buffer.cursor_row());
-        let padding = " ".repeat(terminal::size().unwrap().0 as usize - line.len());
+        let line = self.buffer.nth_line(self.buffer.cursor_row() + self.offset);
+        let padding = " ".repeat(Screen::cols() - line.len());
         execute!(
             stdout(),
             cursor::MoveToColumn(0),
@@ -94,9 +144,17 @@ impl Screen {
         )
     }
 
+    fn cols() -> usize {
+        terminal::size().unwrap().0 as usize
+    }
+
+    fn rows() -> usize {
+        terminal::size().unwrap().1 as usize
+    }
+
     pub fn load_file(&mut self, filename: String) -> Result<()> {
         self.buffer = Buffer::from_filepath(filename);
-        self.write_buffer()?;
+        self.print_buffer()?;
         self.buffer.zero_cursor();
         self.offset = 0;
         self.reprint_cursor()
@@ -104,14 +162,14 @@ impl Screen {
 
     // TODO: one char at a time is definitely not right
     pub fn type_char(&mut self, c: char) -> Result<()> {
-        self.buffer.add_char(c);
+        self.buffer.add_char(c, self.offset);
         self.move_cursor(1, 0)?;
         self.reprint_line()
     }
 
     pub fn delete_chars(&mut self, n: usize) -> Result<()> {
         for _ in 0..n {
-            self.buffer.delete_char();
+            self.buffer.delete_char(self.offset);
             self.move_cursor(-1, 0)?;
         }
         // TODO: what if we move to the prev line
