@@ -12,10 +12,10 @@ type KeymapFn = Box<dyn Fn(&mut State) -> Result<()>>;
 // TODO: modifiers
 pub type KeymapTrie = Trie<u8, KeymapFn>;
 
-pub fn new_keymap_trie(maps: Vec<(String, KeymapFn)>) -> KeymapTrie {
+pub fn new_keymap_trie(maps: Vec<(impl ToString, KeymapFn)>) -> KeymapTrie {
     let mut trie = Trie::new();
     for (k, v) in maps {
-        trie.insert(k.into_bytes(), v);
+        trie.insert(k.to_string().into_bytes(), v);
     }
     trie
 }

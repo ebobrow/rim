@@ -1,7 +1,6 @@
 use std::{
-    cmp::{max, min},
     fs::File,
-    io::Read,
+    io::{self, Read, Seek, Write},
     path::Path,
 };
 
@@ -16,7 +15,9 @@ pub struct Buffer {
 
 impl Buffer {
     pub fn from_filepath<P: AsRef<Path>>(path: P) -> Self {
-        let mut file = File::open(path).unwrap();
+        // TODO: handle the implicit blank line at the end. which is to say, don't print it, print
+        // something if it doesn't exist, retain it on save.
+        let mut file = File::options().write(true).read(true).open(path).unwrap();
         let mut contents = String::new();
         file.read_to_string(&mut contents).unwrap();
         Self {
@@ -64,5 +65,16 @@ impl Buffer {
 
     pub fn nth_line(&self, n: usize) -> &str {
         &self.lines[n]
+    }
+
+    pub fn write(&mut self) -> io::Result<()> {
+        if let Some(mut handle) = self.handle.as_ref() {
+            handle.rewind()?;
+            handle.write_all(self.lines.join("\n").as_bytes())?;
+        } else {
+            todo!("error: no filename")
+        }
+
+        Ok(())
     }
 }

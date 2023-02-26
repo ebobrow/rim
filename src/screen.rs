@@ -11,7 +11,7 @@ use crossterm::{
     Result,
 };
 
-use crate::buffer::{self, Buffer};
+use crate::buffer::Buffer;
 
 pub struct Screen {
     // TODO: this isn't really true right b/c of splits? implement `active_buf_idx` and `buffers`
@@ -74,7 +74,9 @@ impl Screen {
         let (mut row, col) = if self.buffer.lines().is_empty() {
             (0, 0)
         } else {
-            let normalize = |n| if n == 0 { 0 } else { n - 1 };
+            // TODO: better solution--basically subtract 1 from n if we're in normal mode but we
+            // are allowed to go one further if we are in insert mode
+            let normalize = |n| if n == 0 { 0 } else { n };
 
             let row = min(
                 self.buffer.lines().len() as isize - 1,
@@ -121,7 +123,13 @@ impl Screen {
 
     fn print_buffer(&mut self) -> Result<()> {
         execute!(stdout(), cursor::Hide, cursor::MoveTo(0, 0))?;
-        for line in &self.buffer.lines()[self.offset..Screen::rows() + self.offset] {
+        for line in self
+            .buffer
+            .lines()
+            .iter()
+            .skip(self.offset)
+            .take(Screen::rows())
+        {
             let padding = " ".repeat(Screen::cols() - line.len());
             execute!(
                 stdout(),
@@ -174,5 +182,10 @@ impl Screen {
         }
         // TODO: what if we move to the prev line
         self.reprint_line()
+    }
+
+    pub fn write(&mut self) {
+        // TODO: print errors in status bar
+        self.buffer.write().unwrap();
     }
 }

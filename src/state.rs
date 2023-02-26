@@ -33,32 +33,24 @@ impl State {
                 (
                     Mode::Normal,
                     new_keymap_trie(vec![
+                        ("h", Box::new(|state| state.screen_mut().move_cursor(-1, 0))),
+                        ("j", Box::new(|state| state.screen_mut().move_cursor(0, 1))),
+                        ("k", Box::new(|state| state.screen_mut().move_cursor(0, -1))),
+                        ("l", Box::new(|state| state.screen_mut().move_cursor(1, 0))),
+                        ("ZZ", Box::new(|_| State::finish())),
+                        ("i", Box::new(|state| state.enter_insert_mode())),
                         (
-                            "h".to_string(),
-                            Box::new(|state| state.screen_mut().move_cursor(-1, 0)),
+                            "w",
+                            Box::new(|state| {
+                                state.screen_mut().write();
+                                Ok(())
+                            }),
                         ),
-                        (
-                            "j".to_string(),
-                            Box::new(|state| state.screen_mut().move_cursor(0, 1)),
-                        ),
-                        (
-                            "k".to_string(),
-                            Box::new(|state| state.screen_mut().move_cursor(0, -1)),
-                        ),
-                        (
-                            "l".to_string(),
-                            Box::new(|state| state.screen_mut().move_cursor(1, 0)),
-                        ),
-                        ("ZZ".to_string(), Box::new(|_| State::finish())),
-                        ("i".to_string(), Box::new(|state| state.enter_insert_mode())),
                     ]),
                 ),
                 (
                     Mode::Insert,
-                    new_keymap_trie(vec![(
-                        "jk".to_string(),
-                        Box::new(|state| state.enter_normal_mode()),
-                    )]),
+                    new_keymap_trie(vec![("jk", Box::new(|state| state.enter_normal_mode()))]),
                 ),
             ])),
         })
