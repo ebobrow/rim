@@ -13,12 +13,13 @@ mod state;
 // [x] Multiple keys in a row (like <leader>f)
 // [ ] Edit modes (for now, Normal, Insert, and Command)
 // [x] Data structure for text so that you aren't allowed to move cursor off of text
-// [ ] Scroll
+// [x] Scroll
+// [ ] Sideways scrolling--currently if you have a line wider than the screen it just panics and dies
 // [x] Files
 // [ ] (async for stream stuff? or at least buffered read?)
 // [x] Is there a way to gracefully exit on panic?
 // [ ] Line numbers
-// [ ] editing
+// [x] editing
 // [ ] unit tests?
 // [ ] splits/windows
 // [ ] Status bar

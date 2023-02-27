@@ -39,6 +39,16 @@ impl Buffer {
         self.lines[self.cursor.0 + offset].insert(self.cursor.1, c);
     }
 
+    pub fn add_line_break(&mut self, offset: usize) {
+        let line = &mut self.lines[self.cursor.0 + offset];
+        let new_line = if self.cursor.1 == line.len() {
+            String::new()
+        } else {
+            line.split_off(self.cursor.1)
+        };
+        self.lines.insert(self.cursor.0 + 1, new_line);
+    }
+
     pub fn delete_char(&mut self, offset: usize) {
         self.lines[self.cursor.0 + offset].remove(self.cursor.1 - 1);
     }

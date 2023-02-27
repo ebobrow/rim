@@ -31,7 +31,6 @@ pub fn watch(state: &mut State) -> Result<()> {
 
 fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
     if key_event.modifiers.intersects(KeyModifiers::CONTROL) {
-        // TODO
         return Ok(());
     }
     let c = match key_event.code {

@@ -180,11 +180,18 @@ impl Screen {
         self.reprint_cursor()
     }
 
-    // TODO: one char at a time is definitely not right
     pub fn type_char(&mut self, c: char) -> Result<()> {
-        self.buffer.add_char(c, self.offset);
-        self.move_cursor(1, 0)?;
-        self.reprint_line()
+        if c == '\n' {
+            self.buffer.add_line_break(self.offset);
+            self.set_cursor(self.buffer.cursor_row() + 1, 0)?;
+            self.print_buffer()?;
+        } else {
+            self.buffer.add_char(c, self.offset);
+            self.move_cursor(1, 0)?;
+            self.reprint_line()?;
+        }
+
+        Ok(())
     }
 
     pub fn delete_chars(&mut self, n: usize) -> Result<()> {
@@ -192,9 +199,8 @@ impl Screen {
             if self.buffer.cursor_col() == 0 {
                 if self.buffer.cursor_row() != 0 {
                     let new_row = self.buffer.cursor_row() - 1;
-                    let new_col = self.buffer.nth_line(new_row).len();
                     self.buffer.delete_line_break(self.offset);
-                    self.set_cursor(new_row, new_col)?;
+                    self.set_cursor(new_row, self.buffer.nth_line(new_row).len())?;
                     // TODO: technically only have to reprint all lines below the current one--is
                     // that faster or anything worthwhile?
                     self.print_buffer()?;
