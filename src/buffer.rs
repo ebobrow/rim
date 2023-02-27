@@ -43,6 +43,11 @@ impl Buffer {
         self.lines[self.cursor.0 + offset].remove(self.cursor.1 - 1);
     }
 
+    pub fn delete_line_break(&mut self, offset: usize) {
+        let old_row = self.lines.remove(self.cursor.0 + offset);
+        self.lines[self.cursor.0 + offset - 1].push_str(&old_row);
+    }
+
     pub fn set_cursor(&mut self, r: usize, c: usize) {
         self.cursor = (r, c);
     }

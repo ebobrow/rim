@@ -3,7 +3,10 @@ use std::{collections::HashMap, process::exit, rc::Rc};
 use crossterm::{cursor::SetCursorStyle, Result};
 
 use crate::{
-    keys::keyhandler::{new_keymap_trie, KeymapTrie},
+    keys::{
+        self,
+        keyhandler::{new_keymap_trie, KeymapTrie},
+    },
     screen::Screen,
 };
 
@@ -16,9 +19,7 @@ pub enum Mode {
 pub struct State {
     screen: Screen,
     keymaps: Rc<HashMap<Mode, KeymapTrie>>,
-
-    // TODO: store as &[u8] ?
-    current_key_event: String,
+    current_key_event: Vec<u8>,
     mode: Mode,
 }
 
@@ -27,21 +28,27 @@ impl State {
         Ok(Self {
             screen: Screen::new()?,
             mode: Mode::Normal,
-            current_key_event: String::new(),
+            current_key_event: Vec::new(),
             // TODO: macro for this?
             keymaps: Rc::new(HashMap::from([
                 (
                     Mode::Normal,
                     new_keymap_trie(vec![
-                        ("h", Box::new(|state| state.screen_mut().move_cursor(-1, 0))),
-                        ("j", Box::new(|state| state.screen_mut().move_cursor(0, 1))),
-                        ("k", Box::new(|state| state.screen_mut().move_cursor(0, -1))),
-                        ("l", Box::new(|state| state.screen_mut().move_cursor(1, 0))),
-                        // TODO: warn about quitting without writing
-                        ("ZZ", Box::new(|_| State::finish())),
-                        ("i", Box::new(|state| state.enter_insert_mode())),
                         (
-                            "w",
+                            b"h",
+                            Box::new(|state| state.screen_mut().move_cursor(-1, 0)),
+                        ),
+                        (b"j", Box::new(|state| state.screen_mut().move_cursor(0, 1))),
+                        (
+                            b"k",
+                            Box::new(|state| state.screen_mut().move_cursor(0, -1)),
+                        ),
+                        (b"l", Box::new(|state| state.screen_mut().move_cursor(1, 0))),
+                        // TODO: warn about quitting without writing
+                        (b"ZZ", Box::new(|_| State::finish())),
+                        (b"i", Box::new(|state| state.enter_insert_mode())),
+                        (
+                            b"w",
                             Box::new(|state| {
                                 state.screen_mut().write();
                                 Ok(())
@@ -51,7 +58,10 @@ impl State {
                 ),
                 (
                     Mode::Insert,
-                    new_keymap_trie(vec![("jk", Box::new(|state| state.enter_normal_mode()))]),
+                    new_keymap_trie(vec![
+                        (b"jk", Box::new(|state| state.enter_normal_mode())),
+                        (&[keys::ESCAPE], Box::new(|state| state.enter_normal_mode())),
+                    ]),
                 ),
             ])),
         })
@@ -74,19 +84,19 @@ impl State {
         &self.mode
     }
 
-    pub fn current_key_event(&self) -> &str {
+    pub fn current_key_event(&self) -> &[u8] {
         self.current_key_event.as_ref()
     }
 
     pub fn clear_current_key_event(&mut self) {
-        self.current_key_event = String::new();
+        self.current_key_event = Vec::new();
     }
 
-    pub fn append_current_key_event(&mut self, c: char) {
+    pub fn append_current_key_event(&mut self, c: u8) {
         self.current_key_event.push(c);
     }
 
-    pub fn set_current_key_event(&mut self, key: String) {
+    pub fn set_current_key_event(&mut self, key: Vec<u8>) {
         self.current_key_event = key;
     }
 

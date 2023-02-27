@@ -127,6 +127,12 @@ impl Screen {
         Ok(())
     }
 
+    /// Be absolutely positive this is a valid position!!
+    fn set_cursor(&mut self, row: usize, col: usize) -> Result<()> {
+        self.buffer.set_cursor(row, col);
+        self.reprint_cursor()
+    }
+
     fn print_buffer(&mut self) -> Result<()> {
         execute!(stdout(), cursor::Hide, cursor::MoveTo(0, 0))?;
         for line in self
@@ -183,10 +189,21 @@ impl Screen {
 
     pub fn delete_chars(&mut self, n: usize) -> Result<()> {
         for _ in 0..n {
-            self.buffer.delete_char(self.offset);
-            self.move_cursor(-1, 0)?;
+            if self.buffer.cursor_col() == 0 {
+                if self.buffer.cursor_row() != 0 {
+                    let new_row = self.buffer.cursor_row() - 1;
+                    let new_col = self.buffer.nth_line(new_row).len();
+                    self.buffer.delete_line_break(self.offset);
+                    self.set_cursor(new_row, new_col)?;
+                    // TODO: technically only have to reprint all lines below the current one--is
+                    // that faster or anything worthwhile?
+                    self.print_buffer()?;
+                }
+            } else {
+                self.buffer.delete_char(self.offset);
+                self.move_cursor(-1, 0)?;
+            }
         }
-        // TODO: what if we move to the prev line
         self.reprint_line()
     }
 
