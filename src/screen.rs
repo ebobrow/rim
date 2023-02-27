@@ -76,7 +76,13 @@ impl Screen {
         } else {
             // TODO: better solution--basically subtract 1 from n if we're in normal mode but we
             // are allowed to go one further if we are in insert mode
-            let normalize = |n| if n == 0 { 0 } else { n };
+            let normalize = |n| {
+                if n == 0 {
+                    0
+                } else {
+                    n /* - 1 */
+                }
+            };
 
             let row = min(
                 self.buffer.lines().len() as isize - 1,

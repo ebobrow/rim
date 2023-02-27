@@ -37,6 +37,7 @@ impl State {
                         ("j", Box::new(|state| state.screen_mut().move_cursor(0, 1))),
                         ("k", Box::new(|state| state.screen_mut().move_cursor(0, -1))),
                         ("l", Box::new(|state| state.screen_mut().move_cursor(1, 0))),
+                        // TODO: warn about quitting without writing
                         ("ZZ", Box::new(|_| State::finish())),
                         ("i", Box::new(|state| state.enter_insert_mode())),
                         (
@@ -83,6 +84,10 @@ impl State {
 
     pub fn append_current_key_event(&mut self, c: char) {
         self.current_key_event.push(c);
+    }
+
+    pub fn set_current_key_event(&mut self, key: String) {
+        self.current_key_event = key;
     }
 
     pub fn enter_insert_mode(&mut self) -> Result<()> {
