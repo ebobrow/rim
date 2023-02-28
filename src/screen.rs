@@ -128,8 +128,8 @@ impl Screen {
     }
 
     /// Be absolutely positive this is a valid position!!
-    fn set_cursor(&mut self, row: usize, col: usize) -> Result<()> {
-        self.buffer.set_cursor(row, col);
+    fn set_cursor_col(&mut self, col: usize) -> Result<()> {
+        self.buffer.set_cursor(self.buffer.cursor_row(), col);
         self.reprint_cursor()
     }
 
@@ -183,7 +183,8 @@ impl Screen {
     pub fn type_char(&mut self, c: char) -> Result<()> {
         if c == '\n' {
             self.buffer.add_line_break(self.offset);
-            self.set_cursor(self.buffer.cursor_row() + 1, 0)?;
+            self.move_cursor(0, 1)?;
+            self.set_cursor_col(0)?;
             self.print_buffer()?;
         } else {
             self.buffer.add_char(c, self.offset);
@@ -197,10 +198,12 @@ impl Screen {
     pub fn delete_chars(&mut self, n: usize) -> Result<()> {
         for _ in 0..n {
             if self.buffer.cursor_col() == 0 {
-                if self.buffer.cursor_row() != 0 {
-                    let new_row = self.buffer.cursor_row() - 1;
+                if self.buffer.cursor_row() + self.offset != 0 {
+                    let new_row = self.buffer.cursor_row() + self.offset - 1;
+                    let new_col = self.buffer.nth_line(new_row).len();
                     self.buffer.delete_line_break(self.offset);
-                    self.set_cursor(new_row, self.buffer.nth_line(new_row).len())?;
+                    self.move_cursor(0, -1)?;
+                    self.set_cursor_col(new_col)?;
                     // TODO: technically only have to reprint all lines below the current one--is
                     // that faster or anything worthwhile?
                     self.print_buffer()?;

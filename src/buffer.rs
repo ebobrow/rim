@@ -46,7 +46,7 @@ impl Buffer {
         } else {
             line.split_off(self.cursor.1)
         };
-        self.lines.insert(self.cursor.0 + 1, new_line);
+        self.lines.insert(self.cursor.0 + 1 + offset, new_line);
     }
 
     pub fn delete_char(&mut self, offset: usize) {
