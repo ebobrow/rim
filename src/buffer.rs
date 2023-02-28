@@ -1,7 +1,6 @@
 use std::{
     fs::File,
     io::{self, Read, Seek, Write},
-    path::Path,
 };
 
 pub struct Buffer {
@@ -11,19 +10,27 @@ pub struct Buffer {
     cursor: (usize, usize),
 
     handle: Option<File>,
+    filename: String,
+    unsaved_changes: bool,
 }
 
 impl Buffer {
-    pub fn from_filepath<P: AsRef<Path>>(path: P) -> Self {
+    pub fn from_filepath(path: impl ToString) -> Self {
         // TODO: handle the implicit blank line at the end. which is to say, don't print it, print
         // something if it doesn't exist, retain it on save.
-        let mut file = File::options().write(true).read(true).open(path).unwrap();
+        let mut file = File::options()
+            .write(true)
+            .read(true)
+            .open(path.to_string())
+            .unwrap();
         let mut contents = String::new();
         file.read_to_string(&mut contents).unwrap();
         Self {
             lines: contents.split('\n').map(String::from).collect(),
             cursor: (0, 0),
             handle: Some(file),
+            filename: path.to_string(),
+            unsaved_changes: false,
         }
     }
 
@@ -32,11 +39,14 @@ impl Buffer {
             lines: s.split('\n').map(String::from).collect(),
             cursor: (0, 0),
             handle: None,
+            filename: String::from("[scratch]"),
+            unsaved_changes: false,
         }
     }
 
     pub fn add_char(&mut self, c: char, offset: usize) {
         self.lines[self.cursor.0 + offset].insert(self.cursor.1, c);
+        self.unsaved_changes = true;
     }
 
     pub fn add_line_break(&mut self, offset: usize) {
@@ -47,15 +57,18 @@ impl Buffer {
             line.split_off(self.cursor.1)
         };
         self.lines.insert(self.cursor.0 + 1 + offset, new_line);
+        self.unsaved_changes = true;
     }
 
     pub fn delete_char(&mut self, offset: usize) {
         self.lines[self.cursor.0 + offset].remove(self.cursor.1 - 1);
+        self.unsaved_changes = true;
     }
 
     pub fn delete_line_break(&mut self, offset: usize) {
         let old_row = self.lines.remove(self.cursor.0 + offset);
         self.lines[self.cursor.0 + offset - 1].push_str(&old_row);
+        self.unsaved_changes = true;
     }
 
     pub fn set_cursor(&mut self, r: usize, c: usize) {
@@ -89,7 +102,16 @@ impl Buffer {
         } else {
             todo!("error: no filename")
         }
+        self.unsaved_changes = false;
 
         Ok(())
+    }
+
+    pub fn filename(&self) -> &str {
+        self.filename.as_ref()
+    }
+
+    pub fn unsaved_changes(&self) -> bool {
+        self.unsaved_changes
     }
 }

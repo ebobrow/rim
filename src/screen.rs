@@ -6,7 +6,8 @@ use std::{
 
 use crossterm::{
     cursor::{self, SetCursorStyle},
-    execute, style,
+    execute,
+    style::{self, Color},
     terminal::{self, disable_raw_mode, enable_raw_mode},
     Result,
 };
@@ -21,6 +22,8 @@ pub struct Screen {
 
     /// instead of storing a cursor, use the buffer's cursor but with offset for scroll
     offset: usize,
+
+    message: String,
 }
 
 impl Screen {
@@ -51,6 +54,7 @@ impl Screen {
             // TODO: centered info screen
             buffer: Buffer::from_string(String::new()),
             offset: 0,
+            message: String::new(),
         })
     }
 
@@ -71,6 +75,7 @@ impl Screen {
 
     /// Moves cursor `rl` to the right (negative goes left) and `du` down if allowed
     pub fn move_cursor(&mut self, rl: isize, du: isize) -> Result<()> {
+        let (old_row, old_col) = (self.buffer.cursor_row(), self.buffer.cursor_col());
         let (mut row, col) = if self.buffer.lines().is_empty() {
             (0, 0)
         } else {
@@ -100,8 +105,7 @@ impl Screen {
                 ),
             )
         };
-        let term_height = Screen::rows() - 1;
-        let mut scrolled = false;
+        let term_height = Screen::usable_rows() - 1;
         if row < 0 {
             if self.offset > 0 {
                 let amt_under = (-row) as usize;
@@ -110,19 +114,17 @@ impl Screen {
                 } else {
                     self.offset -= amt_under;
                 }
-                scrolled = true;
             }
             row = 0;
         } else if row as usize > term_height {
             let amt_over = row as usize - term_height;
             self.offset += amt_over;
             row -= amt_over as isize;
-            scrolled = true;
         }
-        self.buffer.set_cursor(row as usize, col);
-        self.reprint_cursor()?;
-        if scrolled {
-            self.print_buffer()?;
+        if row as usize != old_row || col != old_col {
+            self.buffer.set_cursor(row as usize, col);
+            self.reprint_cursor()?;
+            self.draw()?;
         }
         Ok(())
     }
@@ -133,34 +135,69 @@ impl Screen {
         self.reprint_cursor()
     }
 
-    fn print_buffer(&mut self) -> Result<()> {
+    fn draw(&mut self) -> Result<()> {
         execute!(stdout(), cursor::Hide, cursor::MoveTo(0, 0))?;
+        let mut num_lines = 0;
         for line in self
             .buffer
             .lines()
             .iter()
             .skip(self.offset)
-            .take(Screen::rows())
+            .take(Screen::usable_rows())
         {
+            num_lines += 1;
             let padding = " ".repeat(Screen::cols() - line.len());
             execute!(
                 stdout(),
+                style::ResetColor,
                 style::Print(format!("{line}{padding}")),
                 cursor::MoveToColumn(0),
                 cursor::MoveDown(1)
             )?;
         }
+        for _ in 0..(Screen::usable_rows() - num_lines) {
+            execute!(
+                stdout(),
+                style::ResetColor,
+                style::Print(format!("{}", " ".repeat(Screen::cols()))),
+                cursor::MoveToColumn(0),
+                cursor::MoveDown(1)
+            )?;
+        }
+        self.print_statusline()?;
+        self.print_messageline()?;
         self.reprint_cursor()
     }
 
-    fn reprint_line(&mut self) -> Result<()> {
-        let line = self.buffer.nth_line(self.buffer.cursor_row() + self.offset);
-        let padding = " ".repeat(Screen::cols() - line.len());
+    fn print_statusline(&mut self) -> Result<()> {
+        // TODO: nicer API for this
+        let name = self.buffer.filename();
+        let cursor_loc = format!(
+            "{}:{}",
+            self.buffer.cursor_row() + self.offset,
+            self.buffer.cursor_col() + self.offset
+        );
+        let save_marker = if self.buffer.unsaved_changes() {
+            " [+]"
+        } else {
+            ""
+        };
+        let padding =
+            " ".repeat(Screen::cols() - (name.len() + cursor_loc.len() + save_marker.len()));
+        let line = format!("{name}{save_marker}{padding}{cursor_loc}");
         execute!(
             stdout(),
-            cursor::MoveToColumn(0),
-            style::Print(format!("{line}{padding}")),
-            cursor::MoveToColumn(self.buffer.cursor_col() as u16),
+            style::SetBackgroundColor(Color::DarkGrey),
+            style::Print(line)
+        )
+    }
+
+    fn print_messageline(&mut self) -> Result<()> {
+        let padding = " ".repeat(Screen::cols() - self.message.len());
+        execute!(
+            stdout(),
+            style::ResetColor,
+            style::Print(format!("{}{}", self.message, padding))
         )
     }
 
@@ -172,9 +209,14 @@ impl Screen {
         terminal::size().unwrap().1 as usize
     }
 
+    fn usable_rows() -> usize {
+        // Status bar and messages
+        Self::rows() - 2
+    }
+
     pub fn load_file(&mut self, filename: String) -> Result<()> {
         self.buffer = Buffer::from_filepath(filename);
-        self.print_buffer()?;
+        self.draw()?;
         self.buffer.zero_cursor();
         self.offset = 0;
         self.reprint_cursor()
@@ -185,11 +227,11 @@ impl Screen {
             self.buffer.add_line_break(self.offset);
             self.move_cursor(0, 1)?;
             self.set_cursor_col(0)?;
-            self.print_buffer()?;
+            self.draw()?;
         } else {
             self.buffer.add_char(c, self.offset);
             self.move_cursor(1, 0)?;
-            self.reprint_line()?;
+            self.draw()?;
         }
 
         Ok(())
@@ -206,18 +248,24 @@ impl Screen {
                     self.set_cursor_col(new_col)?;
                     // TODO: technically only have to reprint all lines below the current one--is
                     // that faster or anything worthwhile?
-                    self.print_buffer()?;
+                    self.draw()?;
                 }
             } else {
                 self.buffer.delete_char(self.offset);
                 self.move_cursor(-1, 0)?;
             }
         }
-        self.reprint_line()
+        self.draw()
     }
 
-    pub fn write(&mut self) {
+    pub fn write(&mut self) -> Result<()> {
         // TODO: print errors in status bar
         self.buffer.write().unwrap();
+        self.set_message(format!("\"{}\" written", self.buffer.filename()))
+    }
+
+    pub fn set_message(&mut self, message: impl ToString) -> Result<()> {
+        self.message = message.to_string();
+        self.draw()
     }
 }

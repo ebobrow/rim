@@ -36,10 +36,22 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
     let c = match key_event.code {
         KeyCode::Backspace => super::BACKSPACE,
         KeyCode::Enter => b'\n',
-        KeyCode::Left => todo!(),
-        KeyCode::Right => todo!(),
-        KeyCode::Up => todo!(),
-        KeyCode::Down => todo!(),
+        KeyCode::Left => {
+            state.screen_mut().move_cursor(-1, 0)?;
+            return Ok(());
+        }
+        KeyCode::Right => {
+            state.screen_mut().move_cursor(1, 0)?;
+            return Ok(());
+        }
+        KeyCode::Up => {
+            state.screen_mut().move_cursor(0, -1)?;
+            return Ok(());
+        }
+        KeyCode::Down => {
+            state.screen_mut().move_cursor(0, 1)?;
+            return Ok(());
+        }
         KeyCode::Tab => super::TAB,
         KeyCode::Char(c) => c as u8,
         KeyCode::Esc => super::ESCAPE,

@@ -47,13 +47,7 @@ impl State {
                         // TODO: warn about quitting without writing
                         (b"ZZ", Box::new(|_| State::finish())),
                         (b"i", Box::new(|state| state.enter_insert_mode())),
-                        (
-                            b"w",
-                            Box::new(|state| {
-                                state.screen_mut().write();
-                                Ok(())
-                            }),
-                        ),
+                        (b"w", Box::new(|state| state.screen_mut().write())),
                     ]),
                 ),
                 (
@@ -102,11 +96,13 @@ impl State {
 
     pub fn enter_insert_mode(&mut self) -> Result<()> {
         self.mode = Mode::Insert;
+        self.screen_mut().set_message("-- INSERT --")?;
         self.screen.set_cursor_shape(SetCursorStyle::SteadyBar)
     }
 
     pub fn enter_normal_mode(&mut self) -> Result<()> {
         self.mode = Mode::Normal;
+        self.screen_mut().set_message("")?;
         self.screen.set_cursor_shape(SetCursorStyle::SteadyBlock)?;
         self.screen.move_cursor(-1, 0)
     }
