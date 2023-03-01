@@ -22,7 +22,7 @@ mod state;
 // [x] editing
 // [ ] unit tests?
 // [ ] splits/windows
-// [ ] Status bar
+// [x] Status bar
 // [ ] internal dev thing but should all commands be routed through state? as in reexport so that
 //     you don't have to do `state.screen_mut().load_file()` but instead just `state.load_file()`?
 

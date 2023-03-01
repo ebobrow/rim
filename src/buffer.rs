@@ -12,12 +12,11 @@ pub struct Buffer {
     handle: Option<File>,
     filename: String,
     unsaved_changes: bool,
+    terminal_newline: bool,
 }
 
 impl Buffer {
     pub fn from_filepath(path: impl ToString) -> Self {
-        // TODO: handle the implicit blank line at the end. which is to say, don't print it, print
-        // something if it doesn't exist, retain it on save.
         let mut file = File::options()
             .write(true)
             .read(true)
@@ -25,12 +24,21 @@ impl Buffer {
             .unwrap();
         let mut contents = String::new();
         file.read_to_string(&mut contents).unwrap();
+        let mut lines: Vec<String> = contents.split('\n').map(String::from).collect();
+        let mut terminal_newline = false;
+        if let Some(end) = lines.last() {
+            if end.is_empty() {
+                lines = lines[..lines.len() - 1].to_vec();
+                terminal_newline = true;
+            }
+        }
         Self {
-            lines: contents.split('\n').map(String::from).collect(),
+            lines,
             cursor: (0, 0),
             handle: Some(file),
             filename: path.to_string(),
             unsaved_changes: false,
+            terminal_newline,
         }
     }
 
@@ -41,6 +49,7 @@ impl Buffer {
             handle: None,
             filename: String::from("[scratch]"),
             unsaved_changes: false,
+            terminal_newline: false,
         }
     }
 
@@ -99,6 +108,9 @@ impl Buffer {
         if let Some(mut handle) = self.handle.as_ref() {
             handle.rewind()?;
             handle.write_all(self.lines.join("\n").as_bytes())?;
+            if self.terminal_newline {
+                handle.write(b"\n")?;
+            }
         } else {
             todo!("error: no filename")
         }
