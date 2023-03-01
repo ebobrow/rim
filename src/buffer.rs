@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{self, Read, Seek, Write},
+    io::{Read, Seek, Write},
 };
 
 pub struct Buffer {

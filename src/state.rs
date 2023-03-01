@@ -23,39 +23,40 @@ pub struct State {
     mode: Mode,
 }
 
+macro_rules! keymaps {
+    ( $($key:expr => $f:expr),* ) => {
+        new_keymap_trie(vec![
+            $( ($key, Box::new($f)) ),*
+        ])
+    };
+}
+
 impl State {
     pub fn init() -> Result<Self> {
         Ok(Self {
             screen: Screen::new()?,
             mode: Mode::Normal,
             current_key_event: Vec::new(),
-            // TODO: macro for this?
             keymaps: Rc::new(HashMap::from([
                 (
                     Mode::Normal,
-                    new_keymap_trie(vec![
-                        (
-                            b"h",
-                            Box::new(|state| state.screen_mut().move_cursor(-1, 0)),
-                        ),
-                        (b"j", Box::new(|state| state.screen_mut().move_cursor(0, 1))),
-                        (
-                            b"k",
-                            Box::new(|state| state.screen_mut().move_cursor(0, -1)),
-                        ),
-                        (b"l", Box::new(|state| state.screen_mut().move_cursor(1, 0))),
+                    keymaps! {
+                        b"h" => |state| state.screen_mut().move_cursor(-1, 0),
+                        b"j" => |state| state.screen_mut().move_cursor(0, 1),
+                        b"k" => |state| state.screen_mut().move_cursor(0, -1),
+                        b"l" => |state| state.screen_mut().move_cursor(1, 0),
                         // TODO: warn about quitting without writing
-                        (b"ZZ", Box::new(|_| State::finish())),
-                        (b"i", Box::new(|state| state.enter_insert_mode())),
-                        (b"w", Box::new(|state| state.screen_mut().write())),
-                    ]),
+                        b"ZZ" => |_| State::finish(),
+                        b"i" => |state| state.enter_insert_mode(),
+                        b"w" => |state| state.screen_mut().write()
+                    },
                 ),
                 (
                     Mode::Insert,
-                    new_keymap_trie(vec![
-                        (b"jk", Box::new(|state| state.enter_normal_mode())),
-                        (&[keys::ESCAPE], Box::new(|state| state.enter_normal_mode())),
-                    ]),
+                    keymaps! {
+                        b"jk" => |state| state.enter_normal_mode(),
+                        &[keys::ESCAPE] => |state| state.enter_normal_mode()
+                    },
                 ),
             ])),
         })

@@ -164,7 +164,7 @@ impl Screen {
             execute!(
                 stdout(),
                 style::ResetColor,
-                style::Print(format!("{}", " ".repeat(Screen::cols()))),
+                style::Print(" ".repeat(Screen::cols())),
                 cursor::MoveToColumn(0),
                 cursor::MoveDown(1)
             )?;
