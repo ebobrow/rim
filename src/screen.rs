@@ -24,6 +24,7 @@ pub struct Screen {
     offset: usize,
 
     message: String,
+    message_is_error: bool,
 }
 
 impl Screen {
@@ -50,12 +51,16 @@ impl Screen {
     pub fn new() -> Result<Self> {
         Self::setup()?;
 
-        Ok(Self {
+        let mut screen = Self {
             // TODO: centered info screen
             buffer: Buffer::from_string(String::new()),
             offset: 0,
             message: String::new(),
-        })
+            message_is_error: false,
+        };
+
+        screen.draw()?;
+        Ok(screen)
     }
 
     pub fn set_cursor_shape(&mut self, shape: SetCursorStyle) -> Result<()> {
@@ -194,11 +199,20 @@ impl Screen {
 
     fn print_messageline(&mut self) -> Result<()> {
         let padding = " ".repeat(Screen::cols() - self.message.len());
-        execute!(
-            stdout(),
-            style::ResetColor,
-            style::Print(format!("{}{}", self.message, padding))
-        )
+        if self.message_is_error {
+            execute!(
+                stdout(),
+                style::ResetColor,
+                style::SetForegroundColor(Color::Red),
+                style::Print(format!("{}{}", self.message, padding))
+            )
+        } else {
+            execute!(
+                stdout(),
+                style::ResetColor,
+                style::Print(format!("{}{}", self.message, padding))
+            )
+        }
     }
 
     fn cols() -> usize {
@@ -259,13 +273,21 @@ impl Screen {
     }
 
     pub fn write(&mut self) -> Result<()> {
-        // TODO: print errors in status bar
-        self.buffer.write().unwrap();
-        self.set_message(format!("\"{}\" written", self.buffer.filename()))
+        match self.buffer.write() {
+            Ok(()) => self.set_message(format!("\"{}\" written", self.buffer.filename())),
+            Err(e) => self.set_error_message(e),
+        }
     }
 
     pub fn set_message(&mut self, message: impl ToString) -> Result<()> {
         self.message = message.to_string();
+        self.message_is_error = false;
+        self.draw()
+    }
+
+    pub fn set_error_message(&mut self, message: impl ToString) -> Result<()> {
+        self.message = message.to_string();
+        self.message_is_error = true;
         self.draw()
     }
 }

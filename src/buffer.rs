@@ -47,7 +47,7 @@ impl Buffer {
             lines: s.split('\n').map(String::from).collect(),
             cursor: (0, 0),
             handle: None,
-            filename: String::from("[scratch]"),
+            filename: String::from("[No Name]"),
             unsaved_changes: false,
             terminal_newline: false,
         }
@@ -104,15 +104,17 @@ impl Buffer {
         &self.lines[n]
     }
 
-    pub fn write(&mut self) -> io::Result<()> {
+    pub fn write(&mut self) -> Result<(), String> {
         if let Some(mut handle) = self.handle.as_ref() {
-            handle.rewind()?;
-            handle.write_all(self.lines.join("\n").as_bytes())?;
+            handle.rewind().map_err(|_| "Internal error")?;
+            handle
+                .write_all(self.lines.join("\n").as_bytes())
+                .map_err(|_| "Internal error")?;
             if self.terminal_newline {
-                handle.write(b"\n")?;
+                handle.write(b"\n").map_err(|_| "Internal error")?;
             }
         } else {
-            todo!("error: no filename")
+            return Err("No filename".to_string());
         }
         self.unsaved_changes = false;
 
