@@ -92,8 +92,10 @@ impl State {
                         b"$" => |state| state.screen_mut().move_cursor_end_of_line(),
                         b"0" => |state| state.screen_mut().set_cursor_col(0),
                         // TODO: `_` (start of text)
+                        // - `gg`, `G`, 10G
+                        // - r
+                        // - u
                         b":" => |state| state.enter_command_mode(),
-                        // TODO: text objects (d6k, dw, etc)
                         b"dd" => |state| state.screen_mut().delete_line(),
                         b"cc" => |state| {
                             state.screen_mut().change_line()?;
@@ -120,6 +122,7 @@ impl State {
                 // TODO: warn about quitting without writing
                 "q" => |_| State::finish(),
                 "q!" => |_| State::finish(),
+                // TODO: e[dit]
             }),
         })
     }

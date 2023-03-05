@@ -17,7 +17,8 @@ this is a line of tezxxt writte n in Rim (don't haeve backspace implemented yet)
 - [x] Files
     - [ ] async for stream stuff? or at least buffered read?
 - [x] Is there a way to gracefully exit on panic?
-- [ ] Line numbers
+- [x] Line numbers
+    - [ ] relative numbers
 - [x] editing
 - [ ] unit tests?
 - [ ] splits/windows
@@ -26,3 +27,4 @@ this is a line of tezxxt writte n in Rim (don't haeve backspace implemented yet)
   reexport so that you don't have to do `state.screen_mut().load_file()` but
   instead just `state.load_file()`?
 - [x] More commands--I, a, A, o, O, $
+- [ ] text objects (d6k, dw, etc.)

@@ -12,6 +12,8 @@ use crossterm::{
     Result,
 };
 
+const SIDEBAR_LEN: usize = 4;
+
 use crate::buffer::Buffer;
 
 pub struct Screen {
@@ -73,7 +75,7 @@ impl Screen {
         execute!(
             stdout(),
             cursor::MoveTo(
-                self.buffer.cursor_col() as u16,
+                (self.buffer.cursor_col() + SIDEBAR_LEN + 1) as u16,
                 self.buffer.cursor_row() as u16
             ),
             cursor::Show
@@ -83,6 +85,7 @@ impl Screen {
     /// Moves cursor `rl` to the right (negative goes left) and `du` down if allowed
     pub fn move_cursor(&mut self, rl: isize, du: isize) -> Result<()> {
         let (old_row, old_col) = (self.buffer.cursor_row(), self.buffer.cursor_col());
+        let old_offset = self.offset;
         let (mut row, col) = if self.buffer.lines().is_empty() {
             (0, 0)
         } else {
@@ -128,9 +131,8 @@ impl Screen {
             self.offset += amt_over;
             row -= amt_over as isize;
         }
-        if row as usize != old_row || col != old_col {
+        if row as usize != old_row || col != old_col || self.offset != old_offset {
             self.buffer.set_cursor(row as usize, col);
-            self.reprint_cursor()?;
             self.draw()?;
         }
         Ok(())
@@ -175,7 +177,12 @@ impl Screen {
     }
 
     fn draw(&mut self) -> Result<()> {
-        execute!(stdout(), cursor::Hide, cursor::MoveTo(0, 0))?;
+        execute!(
+            stdout(),
+            cursor::Hide,
+            cursor::MoveTo(0, 0),
+            style::ResetColor,
+        )?;
         let mut num_lines = 0;
         for line in self
             .buffer
@@ -185,9 +192,13 @@ impl Screen {
             .take(Screen::usable_rows())
         {
             num_lines += 1;
-            let padding = " ".repeat(Screen::cols() - line.len());
+            let padding = " ".repeat(Screen::cols() - line.len() - SIDEBAR_LEN - 1);
+            let linenum = format!("{}", self.offset + num_lines);
+            let linenum_padding = " ".repeat(SIDEBAR_LEN - linenum.len());
             execute!(
                 stdout(),
+                style::SetForegroundColor(Color::DarkGrey),
+                style::Print(format!("{linenum_padding}{linenum} ")),
                 style::ResetColor,
                 style::Print(format!("{line}{padding}")),
                 cursor::MoveToColumn(0),
@@ -197,8 +208,8 @@ impl Screen {
         for _ in 0..(Screen::usable_rows() - num_lines) {
             execute!(
                 stdout(),
-                style::ResetColor,
-                style::Print(" ".repeat(Screen::cols())),
+                style::SetForegroundColor(Color::DarkGrey),
+                style::Print(format!("~{}", " ".repeat(Screen::cols() - 1))),
                 cursor::MoveToColumn(0),
                 cursor::MoveDown(1)
             )?;
@@ -230,6 +241,7 @@ impl Screen {
         let padding = " ".repeat(Screen::cols() - (left_side.len() + right_side.len()));
         execute!(
             stdout(),
+            style::ResetColor,
             style::SetBackgroundColor(Color::DarkGrey),
             style::Print(format!("{left_side}{padding}{right_side}"))
         )
