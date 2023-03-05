@@ -25,6 +25,7 @@ pub struct Screen {
 
     message: String,
     message_is_error: bool,
+    command_mode_cached_cursor: Option<(usize, usize)>,
 }
 
 impl Screen {
@@ -32,7 +33,7 @@ impl Screen {
         enable_raw_mode()?;
         panic::set_hook(Box::new(|info| {
             Self::finish().unwrap();
-            println!("{info}");
+            eprintln!("{info}");
         }));
 
         execute!(
@@ -57,6 +58,7 @@ impl Screen {
             offset: 0,
             message: String::new(),
             message_is_error: false,
+            command_mode_cached_cursor: None,
         };
 
         screen.draw()?;
@@ -175,28 +177,33 @@ impl Screen {
     }
 
     fn print_statusline(&mut self) -> Result<()> {
-        // TODO: nicer API for this
-        let name = self.buffer.filename();
-        let cursor_loc = format!(
-            "{}:{}",
-            self.buffer.cursor_row() + self.offset,
-            self.buffer.cursor_col() + self.offset
+        let left_side = format!(
+            "{name}{save_marker}",
+            name = self.buffer.filename(),
+            save_marker = if self.buffer.unsaved_changes() {
+                " [+]"
+            } else {
+                ""
+            }
         );
-        let save_marker = if self.buffer.unsaved_changes() {
-            " [+]"
-        } else {
-            ""
-        };
-        let padding =
-            " ".repeat(Screen::cols() - (name.len() + cursor_loc.len() + save_marker.len()));
-        let line = format!("{name}{save_marker}{padding}{cursor_loc}");
+        let right_side = format!(
+            "{cursor_loc}",
+            cursor_loc = format!(
+                "{}:{}",
+                self.buffer.cursor_row() + self.offset + 1,
+                self.buffer.cursor_col() + self.offset + 1
+            )
+        );
+
+        let padding = " ".repeat(Screen::cols() - (left_side.len() + right_side.len()));
         execute!(
             stdout(),
             style::SetBackgroundColor(Color::DarkGrey),
-            style::Print(line)
+            style::Print(format!("{left_side}{padding}{right_side}"))
         )
     }
 
+    /// For use in `draw`
     fn print_messageline(&mut self) -> Result<()> {
         let padding = " ".repeat(Screen::cols() - self.message.len());
         if self.message_is_error {
@@ -213,6 +220,13 @@ impl Screen {
                 style::Print(format!("{}{}", self.message, padding))
             )
         }
+    }
+
+    /// Usable on its own
+    fn reprint_messageline(&mut self) -> Result<()> {
+        execute!(stdout(), cursor::MoveTo(0, Screen::rows() as u16))?;
+        self.print_messageline()?;
+        self.reprint_cursor()
     }
 
     fn cols() -> usize {
@@ -289,5 +303,63 @@ impl Screen {
         self.message = message.to_string();
         self.message_is_error = true;
         self.draw()
+    }
+
+    pub fn enter_command_mode(&mut self) -> Result<()> {
+        self.command_mode_cached_cursor =
+            Some((self.buffer.cursor_row(), self.buffer.cursor_col()));
+        self.buffer.set_cursor(Screen::rows(), 1);
+        self.message = ":".into();
+        self.message_is_error = false;
+        self.draw()
+    }
+
+    pub fn leave_command_mode(&mut self) -> Result<()> {
+        let (r, c) = self.command_mode_cached_cursor.unwrap();
+        self.command_mode_cached_cursor = None;
+        self.buffer.set_cursor(r, c);
+        if self.message.starts_with(':') {
+            self.message = "".into();
+        }
+        self.draw()
+    }
+
+    // TODO: it's weird to me that cursor is still stored in buffer; if we had an additional cursor
+    // object attached to screen only for use in command mode we wouldn't need to cache the old one
+    // either
+    // actually for that matter cursor shouldn't be attacked to a buffer but rather a window. think
+    // like if there are multiple splits with the same buffer.
+    pub fn command_move_cursor(&mut self, rl: isize) -> Result<()> {
+        let new_col = self.buffer.cursor_col() as isize + rl;
+        if new_col < 1 {
+            self.buffer.set_cursor(self.buffer.cursor_row(), 1);
+        } else if new_col as usize > self.message.len() {
+            self.buffer
+                .set_cursor(self.buffer.cursor_row(), self.message.len());
+        } else {
+            self.buffer
+                .set_cursor(self.buffer.cursor_row(), new_col as usize);
+        }
+        self.reprint_cursor()
+    }
+
+    pub fn command_type_char(&mut self, c: char) -> Result<()> {
+        self.message.push(c);
+        self.command_move_cursor(1)?;
+        self.reprint_messageline()
+    }
+
+    pub fn command_delete_char(&mut self) -> Result<()> {
+        if self.message.len() == 1 {
+            // TODO: leave command mode (how to change state)
+        } else {
+            self.message.remove(self.message.len() - 1);
+            self.command_move_cursor(-1)?;
+        }
+        self.reprint_messageline()
+    }
+
+    pub fn get_curr_command(&self) -> &str {
+        &self.message[1..]
     }
 }

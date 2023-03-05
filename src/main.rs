@@ -11,7 +11,11 @@ mod state;
 // TODO list:
 // [x] Data structure for keybinds, so that no nested match tree and also user customization
 // [x] Multiple keys in a row (like <leader>f)
-// [ ] Edit modes (for now, Normal, Insert, and Command)
+// [ ] Edit modes
+//   - Normal [x]
+//   - Insert [x]
+//   - Command [x]
+//   - Visual [ ]
 // [x] Data structure for text so that you aren't allowed to move cursor off of text
 // [x] Scroll
 // [ ] Sideways scrolling--currently if you have a line wider than the screen it just panics and dies
@@ -25,6 +29,7 @@ mod state;
 // [x] Status bar
 // [ ] internal dev thing but should all commands be routed through state? as in reexport so that
 //     you don't have to do `state.screen_mut().load_file()` but instead just `state.load_file()`?
+// [ ] More commands--I, a, A, o, O, $
 
 fn main() -> Result<()> {
     let mut state = State::init()?;

@@ -5,7 +5,7 @@ use crossterm::{cursor::SetCursorStyle, Result};
 use crate::{
     keys::{
         self,
-        keyhandler::{new_keymap_trie, KeymapTrie},
+        keyhandler::{new_keymap_trie, KeymapFn, KeymapTrie},
     },
     screen::Screen,
 };
@@ -14,11 +14,13 @@ use crate::{
 pub enum Mode {
     Normal,
     Insert,
+    Command,
 }
 
 pub struct State {
     screen: Screen,
     keymaps: Rc<HashMap<Mode, KeymapTrie>>,
+    commands: Rc<HashMap<String, KeymapFn>>,
     current_key_event: Vec<u8>,
     mode: Mode,
 }
@@ -29,6 +31,22 @@ macro_rules! keymaps {
             $( ($key, Box::new($f)) ),*
         ])
     };
+}
+
+macro_rules! commands {
+    ( $($key:literal => $f:expr),* ) => {
+        new_hash_map(vec![
+            $( ($key.to_string(), Box::new($f)) ),*
+        ])
+    };
+}
+
+pub fn new_hash_map(maps: Vec<(String, KeymapFn)>) -> HashMap<String, KeymapFn> {
+    let mut map = HashMap::new();
+    for (k, v) in maps {
+        map.insert(k, v);
+    }
+    map
 }
 
 impl State {
@@ -48,7 +66,8 @@ impl State {
                         // TODO: warn about quitting without writing
                         b"ZZ" => |_| State::finish(),
                         b"i" => |state| state.enter_insert_mode(),
-                        b"w" => |state| state.screen_mut().write()
+                        b"w" => |state| state.screen_mut().write(),
+                        b":" => |state| state.enter_command_mode()
                     },
                 ),
                 (
@@ -58,7 +77,16 @@ impl State {
                         &[keys::ESCAPE] => |state| state.enter_normal_mode()
                     },
                 ),
+                (
+                    Mode::Command,
+                    keymaps! {
+                            &[keys::ESCAPE] => |state| state.leave_command_mode()
+                    },
+                ),
             ])),
+            commands: Rc::new(commands! {
+                "w" => |state| state.screen_mut().write()
+            }),
         })
     }
 
@@ -106,5 +134,29 @@ impl State {
         self.screen_mut().set_message("")?;
         self.screen.set_cursor_shape(SetCursorStyle::SteadyBlock)?;
         self.screen.move_cursor(-1, 0)
+    }
+
+    pub fn enter_command_mode(&mut self) -> Result<()> {
+        self.mode = Mode::Command;
+        self.screen_mut().enter_command_mode()
+    }
+
+    pub fn leave_command_mode(&mut self) -> Result<()> {
+        self.mode = Mode::Normal;
+        self.screen_mut().leave_command_mode()
+    }
+
+    pub fn enter_command(&mut self) -> Result<()> {
+        if let Some(f) = self
+            .commands
+            .clone()
+            .get(self.screen_mut().get_curr_command())
+        {
+            f(self)?;
+        } else {
+            let error_msg = format!("Unknown command `{}`", self.screen_mut().get_curr_command());
+            self.screen_mut().set_error_message(error_msg)?;
+        }
+        self.leave_command_mode()
     }
 }

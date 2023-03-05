@@ -7,7 +7,7 @@ use crate::state::{Mode, State};
 
 use super::trie::{FetchResult, Trie};
 
-type KeymapFn = Box<dyn Fn(&mut State) -> Result<()>>;
+pub type KeymapFn = Box<dyn Fn(&mut State) -> Result<()>>;
 
 // TODO: modifiers
 pub type KeymapTrie = Trie<u8, KeymapFn>;
@@ -37,19 +37,33 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
         KeyCode::Backspace => super::BACKSPACE,
         KeyCode::Enter => b'\n',
         KeyCode::Left => {
-            state.screen_mut().move_cursor(-1, 0)?;
+            if let Mode::Command = state.mode() {
+                state.screen_mut().command_move_cursor(-1)?;
+            } else {
+                state.screen_mut().move_cursor(-1, 0)?;
+            }
             return Ok(());
         }
         KeyCode::Right => {
-            state.screen_mut().move_cursor(1, 0)?;
+            if let Mode::Command = state.mode() {
+                state.screen_mut().command_move_cursor(1)?;
+            } else {
+                state.screen_mut().move_cursor(1, 0)?;
+            }
             return Ok(());
         }
         KeyCode::Up => {
-            state.screen_mut().move_cursor(0, -1)?;
+            if let Mode::Command = state.mode() {
+            } else {
+                state.screen_mut().move_cursor(0, -1)?;
+            }
             return Ok(());
         }
         KeyCode::Down => {
-            state.screen_mut().move_cursor(0, 1)?;
+            if let Mode::Command = state.mode() {
+            } else {
+                state.screen_mut().move_cursor(0, 1)?;
+            }
             return Ok(());
         }
         KeyCode::Tab => super::TAB,
@@ -87,6 +101,13 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
             }
             super::BACKSPACE => state.screen_mut().delete_chars(1)?,
             _ => state.screen_mut().type_char(c as char)?,
+        }
+    } else if let Mode::Command = state.mode() {
+        match c {
+            super::TAB => {}
+            super::BACKSPACE => state.screen_mut().command_delete_char()?,
+            b'\n' => state.enter_command()?,
+            _ => state.screen_mut().command_type_char(c as char)?,
         }
     }
     state.append_current_key_event(c);
