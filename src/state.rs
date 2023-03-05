@@ -26,7 +26,7 @@ pub struct State {
 }
 
 macro_rules! keymaps {
-    ( $($key:expr => $f:expr),* ) => {
+    ( $($key:expr => $f:expr),* $(,)? ) => {
         new_keymap_trie(vec![
             $( ($key, Box::new($f)) ),*
         ])
@@ -34,7 +34,7 @@ macro_rules! keymaps {
 }
 
 macro_rules! commands {
-    ( $($key:literal => $f:expr),* ) => {
+    ( $($key:literal => $f:expr),* $(,)? ) => {
         new_hash_map(vec![
             $( ($key.to_string(), Box::new($f)) ),*
         ])
@@ -63,11 +63,42 @@ impl State {
                         b"j" => |state| state.screen_mut().move_cursor(0, 1),
                         b"k" => |state| state.screen_mut().move_cursor(0, -1),
                         b"l" => |state| state.screen_mut().move_cursor(1, 0),
-                        // TODO: warn about quitting without writing
-                        b"ZZ" => |_| State::finish(),
+                        b"ZQ" => |_| State::finish(),
+                        b"ZZ" => |state| {
+                            state.screen_mut().write()?;
+                            State::finish()
+                        },
                         b"i" => |state| state.enter_insert_mode(),
-                        b"w" => |state| state.screen_mut().write(),
-                        b":" => |state| state.enter_command_mode()
+                        b"I" => |state| {
+                            state.screen_mut().set_cursor_col(0)?;
+                            state.enter_insert_mode()
+                        },
+                        b"a" => |state| {
+                            state.enter_insert_mode()?;
+                            state.screen_mut().move_cursor(1, 0)
+                        },
+                        b"A" => |state| {
+                            state.enter_insert_mode()?;
+                            state.screen_mut().move_cursor_end_of_line()
+                        },
+                        b"o" => |state| {
+                            state.screen_mut().new_line_below()?;
+                            state.enter_insert_mode()
+                        },
+                        b"O" => |state| {
+                            state.screen_mut().new_line_above()?;
+                            state.enter_insert_mode()
+                        },
+                        b"$" => |state| state.screen_mut().move_cursor_end_of_line(),
+                        b"0" => |state| state.screen_mut().set_cursor_col(0),
+                        // TODO: `_` (start of text)
+                        b":" => |state| state.enter_command_mode(),
+                        // TODO: text objects (d6k, dw, etc)
+                        b"dd" => |state| state.screen_mut().delete_line(),
+                        b"cc" => |state| {
+                            state.screen_mut().change_line()?;
+                            state.enter_insert_mode()
+                        },
                     },
                 ),
                 (
@@ -85,7 +116,10 @@ impl State {
                 ),
             ])),
             commands: Rc::new(commands! {
-                "w" => |state| state.screen_mut().write()
+                "w" => |state| state.screen_mut().write(),
+                // TODO: warn about quitting without writing
+                "q" => |_| State::finish(),
+                "q!" => |_| State::finish(),
             }),
         })
     }

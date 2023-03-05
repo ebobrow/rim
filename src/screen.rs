@@ -137,9 +137,41 @@ impl Screen {
     }
 
     /// Be absolutely positive this is a valid position!!
-    fn set_cursor_col(&mut self, col: usize) -> Result<()> {
+    pub fn set_cursor_col(&mut self, col: usize) -> Result<()> {
         self.buffer.set_cursor(self.buffer.cursor_row(), col);
         self.reprint_cursor()
+    }
+
+    pub fn move_cursor_end_of_line(&mut self) -> Result<()> {
+        self.buffer.set_cursor(
+            self.buffer.cursor_row(),
+            self.buffer
+                .nth_line(self.buffer.cursor_row() + self.offset)
+                .len(),
+        );
+        self.reprint_cursor()
+    }
+
+    pub fn new_line_below(&mut self) -> Result<()> {
+        self.buffer.new_line_below(self.offset);
+        self.move_cursor(0, 1)
+    }
+
+    pub fn new_line_above(&mut self) -> Result<()> {
+        self.buffer.new_line_above(self.offset);
+        self.move_cursor(0, -1)
+    }
+
+    pub fn delete_line(&mut self) -> Result<()> {
+        self.buffer.delete_line(self.offset);
+        self.move_cursor(0, 0)?;
+        self.draw()
+    }
+
+    pub fn change_line(&mut self) -> Result<()> {
+        self.buffer.change_line(self.offset);
+        self.move_cursor(0, 0)?;
+        self.draw()
     }
 
     fn draw(&mut self) -> Result<()> {

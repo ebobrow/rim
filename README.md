@@ -15,7 +15,7 @@ this is a line of tezxxt writte n in Rim (don't haeve backspace implemented yet)
 - [x] Scroll
 - [ ] Sideways scrolling--currently if you have a line wider than the screen it just panics and dies
 - [x] Files
-- [ ] (async for stream stuff? or at least buffered read?)
+    - [ ] async for stream stuff? or at least buffered read?
 - [x] Is there a way to gracefully exit on panic?
 - [ ] Line numbers
 - [x] editing
@@ -25,5 +25,4 @@ this is a line of tezxxt writte n in Rim (don't haeve backspace implemented yet)
 - [ ] internal dev thing but should all commands be routed through state? as in
   reexport so that you don't have to do `state.screen_mut().load_file()` but
   instead just `state.load_file()`?
-- [ ] More commands--I, a, A, o, O, $
-
+- [x] More commands--I, a, A, o, O, $

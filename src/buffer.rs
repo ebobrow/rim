@@ -11,6 +11,8 @@ pub struct Buffer {
 
     handle: Option<File>,
     filename: String,
+
+    // TODO: don't trigger if you typed j and hten triggered jk macro
     unsaved_changes: bool,
     terminal_newline: bool,
 }
@@ -69,9 +71,25 @@ impl Buffer {
         self.unsaved_changes = true;
     }
 
+    pub fn new_line_below(&mut self, offset: usize) {
+        self.lines.insert(self.cursor.0 + offset + 1, String::new());
+    }
+
+    pub fn new_line_above(&mut self, offset: usize) {
+        self.lines.insert(self.cursor.0 + offset, String::new());
+    }
+
     pub fn delete_char(&mut self, offset: usize) {
         self.lines[self.cursor.0 + offset].remove(self.cursor.1 - 1);
         self.unsaved_changes = true;
+    }
+
+    pub fn delete_line(&mut self, offset: usize) {
+        self.lines.remove(self.cursor.0 + offset);
+    }
+
+    pub fn change_line(&mut self, offset: usize) {
+        self.lines[self.cursor.0 + offset].clear();
     }
 
     pub fn delete_line_break(&mut self, offset: usize) {
