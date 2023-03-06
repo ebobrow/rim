@@ -40,7 +40,7 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
             if let Mode::Command = state.mode() {
                 state.screen_mut().command_move_cursor(-1)?;
             } else {
-                state.screen_mut().move_cursor(-1, 0)?;
+                state.screen_mut().move_cursor_col(-1)?;
             }
             return Ok(());
         }
@@ -48,21 +48,21 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
             if let Mode::Command = state.mode() {
                 state.screen_mut().command_move_cursor(1)?;
             } else {
-                state.screen_mut().move_cursor(1, 0)?;
+                state.screen_mut().move_cursor_col(1)?;
             }
             return Ok(());
         }
         KeyCode::Up => {
             if let Mode::Command = state.mode() {
             } else {
-                state.screen_mut().move_cursor(0, -1)?;
+                state.screen_mut().move_cursor_row(-1)?;
             }
             return Ok(());
         }
         KeyCode::Down => {
             if let Mode::Command = state.mode() {
             } else {
-                state.screen_mut().move_cursor(0, 1)?;
+                state.screen_mut().move_cursor_row(1)?;
             }
             return Ok(());
         }

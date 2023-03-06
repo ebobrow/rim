@@ -13,7 +13,7 @@ this is a line of tezxxt writte n in Rim (don't haeve backspace implemented yet)
     - [ ] Visual
 - [x] Data structure for text so that you aren't allowed to move cursor off of text
 - [x] Scroll
-- [ ] Sideways scrolling--currently if you have a line wider than the screen it just panics and dies
+- [x] Sideways scrolling--currently if you have a line wider than the screen it just panics and dies
 - [x] Files
     - [ ] async for stream stuff? or at least buffered read?
 - [x] Is there a way to gracefully exit on panic?

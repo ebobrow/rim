@@ -59,10 +59,10 @@ impl State {
                 (
                     Mode::Normal,
                     keymaps! {
-                        b"h" => |state| state.screen_mut().move_cursor(-1, 0),
-                        b"j" => |state| state.screen_mut().move_cursor(0, 1),
-                        b"k" => |state| state.screen_mut().move_cursor(0, -1),
-                        b"l" => |state| state.screen_mut().move_cursor(1, 0),
+                        b"h" => |state| state.screen_mut().move_cursor_col(-1),
+                        b"j" => |state| state.screen_mut().move_cursor_row(1),
+                        b"k" => |state| state.screen_mut().move_cursor_row(-1),
+                        b"l" => |state| state.screen_mut().move_cursor_col(1),
                         b"ZQ" => |_| State::finish(),
                         b"ZZ" => |state| {
                             state.screen_mut().write()?;
@@ -70,12 +70,12 @@ impl State {
                         },
                         b"i" => |state| state.enter_insert_mode(),
                         b"I" => |state| {
-                            state.screen_mut().set_cursor_col(0)?;
+                            state.screen_mut().zero_cursor_col()?;
                             state.enter_insert_mode()
                         },
                         b"a" => |state| {
                             state.enter_insert_mode()?;
-                            state.screen_mut().move_cursor(1, 0)
+                            state.screen_mut().move_cursor_col(1)
                         },
                         b"A" => |state| {
                             state.enter_insert_mode()?;
@@ -90,7 +90,7 @@ impl State {
                             state.enter_insert_mode()
                         },
                         b"$" => |state| state.screen_mut().move_cursor_end_of_line(),
-                        b"0" => |state| state.screen_mut().set_cursor_col(0),
+                        b"0" => |state| state.screen_mut().zero_cursor_col(),
                         // TODO: `_` (start of text)
                         // - `gg`, `G`, 10G
                         // - r
@@ -170,7 +170,7 @@ impl State {
         self.mode = Mode::Normal;
         self.screen_mut().set_message("")?;
         self.screen.set_cursor_shape(SetCursorStyle::SteadyBlock)?;
-        self.screen.move_cursor(-1, 0)
+        self.screen.move_cursor_col(-1)
     }
 
     pub fn enter_command_mode(&mut self) -> Result<()> {

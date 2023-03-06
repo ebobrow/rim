@@ -5,10 +5,6 @@ use std::{
 
 pub struct Buffer {
     lines: Vec<String>,
-
-    /// (row, col)
-    cursor: (usize, usize),
-
     handle: Option<File>,
     filename: String,
 
@@ -36,7 +32,6 @@ impl Buffer {
         }
         Self {
             lines,
-            cursor: (0, 0),
             handle: Some(file),
             filename: path.to_string(),
             unsaved_changes: false,
@@ -47,7 +42,6 @@ impl Buffer {
     pub fn from_string(s: String) -> Self {
         Self {
             lines: s.split('\n').map(String::from).collect(),
-            cursor: (0, 0),
             handle: None,
             filename: String::from("[No Name]"),
             unsaved_changes: false,
@@ -55,63 +49,47 @@ impl Buffer {
         }
     }
 
-    pub fn add_char(&mut self, c: char, offset: usize) {
-        self.lines[self.cursor.0 + offset].insert(self.cursor.1, c);
+    pub fn add_char(&mut self, c: char, cursor: (usize, usize)) {
+        self.lines[cursor.0].insert(cursor.1, c);
         self.unsaved_changes = true;
     }
 
-    pub fn add_line_break(&mut self, offset: usize) {
-        let line = &mut self.lines[self.cursor.0 + offset];
-        let new_line = if self.cursor.1 == line.len() {
+    pub fn add_line_break(&mut self, cursor: (usize, usize)) {
+        let line = &mut self.lines[cursor.0];
+        let new_line = if cursor.1 == line.len() {
             String::new()
         } else {
-            line.split_off(self.cursor.1)
+            line.split_off(cursor.1)
         };
-        self.lines.insert(self.cursor.0 + 1 + offset, new_line);
+        self.lines.insert(cursor.0 + 1, new_line);
         self.unsaved_changes = true;
     }
 
-    pub fn new_line_below(&mut self, offset: usize) {
-        self.lines.insert(self.cursor.0 + offset + 1, String::new());
+    pub fn new_line_below(&mut self, cursor: (usize, usize)) {
+        self.lines.insert(cursor.0 + 1, String::new());
     }
 
-    pub fn new_line_above(&mut self, offset: usize) {
-        self.lines.insert(self.cursor.0 + offset, String::new());
+    pub fn new_line_above(&mut self, cursor: (usize, usize)) {
+        self.lines.insert(cursor.0, String::new());
     }
 
-    pub fn delete_char(&mut self, offset: usize) {
-        self.lines[self.cursor.0 + offset].remove(self.cursor.1 - 1);
+    pub fn delete_char(&mut self, cursor: (usize, usize)) {
+        self.lines[cursor.0].remove(cursor.1 - 1);
         self.unsaved_changes = true;
     }
 
-    pub fn delete_line(&mut self, offset: usize) {
-        self.lines.remove(self.cursor.0 + offset);
+    pub fn delete_line(&mut self, cursor: (usize, usize)) {
+        self.lines.remove(cursor.0);
     }
 
-    pub fn change_line(&mut self, offset: usize) {
-        self.lines[self.cursor.0 + offset].clear();
+    pub fn change_line(&mut self, cursor: (usize, usize)) {
+        self.lines[cursor.0].clear();
     }
 
-    pub fn delete_line_break(&mut self, offset: usize) {
-        let old_row = self.lines.remove(self.cursor.0 + offset);
-        self.lines[self.cursor.0 + offset - 1].push_str(&old_row);
+    pub fn delete_line_break(&mut self, cursor: (usize, usize)) {
+        let old_row = self.lines.remove(cursor.0);
+        self.lines[cursor.0 - 1].push_str(&old_row);
         self.unsaved_changes = true;
-    }
-
-    pub fn set_cursor(&mut self, r: usize, c: usize) {
-        self.cursor = (r, c);
-    }
-
-    pub fn zero_cursor(&mut self) {
-        self.cursor = (0, 0);
-    }
-
-    pub fn cursor_row(&self) -> usize {
-        self.cursor.0
-    }
-
-    pub fn cursor_col(&self) -> usize {
-        self.cursor.1
     }
 
     pub fn lines(&self) -> &[String] {
