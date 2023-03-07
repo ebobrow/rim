@@ -59,10 +59,10 @@ impl State {
                 (
                     Mode::Normal,
                     keymaps! {
-                        b"h" => |state| state.screen_mut().move_cursor_col(-1),
-                        b"j" => |state| state.screen_mut().move_cursor_row(1),
-                        b"k" => |state| state.screen_mut().move_cursor_row(-1),
-                        b"l" => |state| state.screen_mut().move_cursor_col(1),
+                        b"h" => |state| state.screen_mut().active_window().move_cursor_col(-1),
+                        b"j" => |state| state.screen_mut().active_window().move_cursor_row(1),
+                        b"k" => |state| state.screen_mut().active_window().move_cursor_row(-1),
+                        b"l" => |state| state.screen_mut().active_window().move_cursor_col(1),
                         b"ZQ" => |_| State::finish(),
                         b"ZZ" => |state| {
                             state.screen_mut().write()?;
@@ -70,35 +70,35 @@ impl State {
                         },
                         b"i" => |state| state.enter_insert_mode(),
                         b"I" => |state| {
-                            state.screen_mut().zero_cursor_col()?;
+                            state.screen_mut().active_window().zero_cursor_col()?;
                             state.enter_insert_mode()
                         },
                         b"a" => |state| {
                             state.enter_insert_mode()?;
-                            state.screen_mut().move_cursor_col(1)
+                            state.screen_mut().active_window().move_cursor_col(1)
                         },
                         b"A" => |state| {
                             state.enter_insert_mode()?;
-                            state.screen_mut().move_cursor_end_of_line()
+                            state.screen_mut().active_window().move_cursor_end_of_line()
                         },
                         b"o" => |state| {
-                            state.screen_mut().new_line_below()?;
+                            state.screen_mut().active_window().new_line_below()?;
                             state.enter_insert_mode()
                         },
                         b"O" => |state| {
-                            state.screen_mut().new_line_above()?;
+                            state.screen_mut().active_window().new_line_above()?;
                             state.enter_insert_mode()
                         },
-                        b"$" => |state| state.screen_mut().move_cursor_end_of_line(),
-                        b"0" => |state| state.screen_mut().zero_cursor_col(),
+                        b"$" => |state| state.screen_mut().active_window().move_cursor_end_of_line(),
+                        b"0" => |state| state.screen_mut().active_window().zero_cursor_col(),
                         // TODO: `_` (start of text)
                         // - `gg`, `G`, 10G
                         // - r
                         // - u
                         b":" => |state| state.enter_command_mode(),
-                        b"dd" => |state| state.screen_mut().delete_line(),
+                        b"dd" => |state| state.screen_mut().active_window().delete_line(),
                         b"cc" => |state| {
-                            state.screen_mut().change_line()?;
+                            state.screen_mut().active_window().change_line()?;
                             state.enter_insert_mode()
                         },
                     },
@@ -170,7 +170,7 @@ impl State {
         self.mode = Mode::Normal;
         self.screen_mut().set_message("")?;
         self.screen.set_cursor_shape(SetCursorStyle::SteadyBlock)?;
-        self.screen.move_cursor_col(-1)
+        self.screen.active_window().move_cursor_col(-1)
     }
 
     pub fn enter_command_mode(&mut self) -> Result<()> {
