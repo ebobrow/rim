@@ -44,7 +44,7 @@ impl Screen {
     pub fn new() -> Result<Self> {
         Self::setup()?;
 
-        let mut screen = Self {
+        let screen = Self {
             windows: vec![Window::new(Screen::usable_rows(), Screen::cols(), (0, 0))],
             cur_window: 0,
             command_mode_cursor: None,
@@ -56,8 +56,12 @@ impl Screen {
         Ok(screen)
     }
 
-    pub fn active_window(&mut self) -> &mut Window {
+    pub fn active_window(&self) -> &Window {
         // TODO: error handling
+        &self.windows[self.cur_window]
+    }
+
+    pub fn active_window_mut(&mut self) -> &mut Window {
         &mut self.windows[self.cur_window]
     }
 
@@ -68,10 +72,9 @@ impl Screen {
         } else {
             (half_width, half_width + 1)
         };
-        self.active_window().set_width(width_a);
+        self.active_window_mut().set_width(width_a);
         let new_window = Window::new(
             self.active_window().height(),
-            // TODO: vertical bar; `new_width - 1`
             width_b,
             (
                 self.active_window().loc().0,
@@ -90,7 +93,7 @@ impl Screen {
         } else {
             (half_height, half_height + 1)
         };
-        self.active_window().set_height(height_a);
+        self.active_window_mut().set_height(height_a);
         let new_window = Window::new(
             height_b - 1,
             self.active_window().width(),
@@ -171,15 +174,17 @@ impl Screen {
         execute!(stdout(), shape)
     }
 
-    fn draw(&mut self) -> Result<()> {
-        for window in &mut self.windows {
+    fn draw(&self) -> Result<()> {
+        for window in &self.windows {
             window.draw()?;
+            let loc = window.loc();
+            if loc.1 + window.width() < Screen::cols() {}
         }
         self.print_messageline()?;
         self.reprint_cursor()
     }
 
-    fn reprint_cursor(&mut self) -> Result<()> {
+    fn reprint_cursor(&self) -> Result<()> {
         if let Some(col) = self.command_mode_cursor {
             execute!(
                 stdout(),
@@ -192,7 +197,7 @@ impl Screen {
     }
 
     /// For use in `draw`
-    fn print_messageline(&mut self) -> Result<()> {
+    fn print_messageline(&self) -> Result<()> {
         execute!(stdout(), cursor::MoveTo(0, Screen::rows() as u16))?;
         let formatted_message = if self.message.len() > Screen::cols() {
             self.message[..Screen::cols()].to_owned()
@@ -213,7 +218,7 @@ impl Screen {
     }
 
     /// Usable on its own
-    fn reprint_messageline(&mut self) -> Result<()> {
+    fn reprint_messageline(&self) -> Result<()> {
         self.print_messageline()?;
         self.reprint_cursor()
     }
@@ -232,7 +237,7 @@ impl Screen {
     }
 
     pub fn write(&mut self) -> Result<()> {
-        match self.active_window().write() {
+        match self.active_window_mut().write() {
             Ok(msg) => self.set_message(msg),
             Err(e) => self.set_error_message(e),
         }

@@ -40,7 +40,7 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
             if let Mode::Command = state.mode() {
                 state.screen_mut().command_move_cursor(-1)?;
             } else {
-                state.screen_mut().active_window().move_cursor_col(-1)?;
+                state.screen_mut().active_window_mut().move_cursor_col(-1)?;
             }
             return Ok(());
         }
@@ -48,21 +48,21 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
             if let Mode::Command = state.mode() {
                 state.screen_mut().command_move_cursor(1)?;
             } else {
-                state.screen_mut().active_window().move_cursor_col(1)?;
+                state.screen_mut().active_window_mut().move_cursor_col(1)?;
             }
             return Ok(());
         }
         KeyCode::Up => {
             if let Mode::Command = state.mode() {
             } else {
-                state.screen_mut().active_window().move_cursor_row(-1)?;
+                state.screen_mut().active_window_mut().move_cursor_row(-1)?;
             }
             return Ok(());
         }
         KeyCode::Down => {
             if let Mode::Command = state.mode() {
             } else {
-                state.screen_mut().active_window().move_cursor_row(1)?;
+                state.screen_mut().active_window_mut().move_cursor_row(1)?;
             }
             return Ok(());
         }
@@ -96,11 +96,14 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
         match c {
             super::TAB => {
                 for _ in 0..4 {
-                    state.screen_mut().active_window().type_char(' ')?;
+                    state.screen_mut().active_window_mut().type_char(' ')?;
                 }
             }
-            super::BACKSPACE => state.screen_mut().active_window().delete_chars(1)?,
-            _ => state.screen_mut().active_window().type_char(c as char)?,
+            super::BACKSPACE => state.screen_mut().active_window_mut().delete_chars(1)?,
+            _ => state
+                .screen_mut()
+                .active_window_mut()
+                .type_char(c as char)?,
         }
     } else if let Mode::Command = state.mode() {
         match c {
@@ -125,7 +128,10 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
                 //     - just like a timeout but I'm worried about race conditions
                 //     - and display the char differently so it's clear it's pending completion
                 let len = state.current_key_event().len();
-                state.screen_mut().active_window().delete_chars(len - i)?;
+                state
+                    .screen_mut()
+                    .active_window_mut()
+                    .delete_chars(len - i)?;
             }
             f(state)?;
             state.clear_current_key_event();

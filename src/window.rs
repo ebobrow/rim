@@ -3,7 +3,7 @@ use std::{cmp::min, io::stdout};
 use crossterm::{
     cursor, execute,
     style::{self, Color},
-    Result as CResult,
+    terminal, Result as CResult,
 };
 
 use crate::buffer::Buffer;
@@ -63,7 +63,7 @@ impl Window {
         self.width - SIDEBAR_LEN - 1
     }
 
-    pub fn reprint_cursor(&mut self) -> CResult<()> {
+    pub fn reprint_cursor(&self) -> CResult<()> {
         let row = self.cursor_row() + self.loc.0;
         let col = self.cursor_col() + self.loc.1 + SIDEBAR_LEN + 1;
         execute!(
@@ -198,7 +198,7 @@ impl Window {
         self.redraw()
     }
 
-    pub fn draw(&mut self) -> CResult<()> {
+    pub fn draw(&self) -> CResult<()> {
         execute!(
             stdout(),
             cursor::Hide,
@@ -230,6 +230,8 @@ impl Window {
                 style::Print(format!("{linenum_padding}{linenum} ")),
                 style::ResetColor,
                 style::Print(formatted_line),
+                // style::SetForegroundColor(Color::Black),
+                // style::Print("|"),
                 cursor::MoveToColumn(self.loc.1 as u16),
                 cursor::MoveDown(1)
             )?;
@@ -243,15 +245,19 @@ impl Window {
                 cursor::MoveDown(1)
             )?;
         }
-        self.print_statusline()
+        self.print_statusline()?;
+        if self.loc.1 + self.width < terminal::size().unwrap().0 as usize {
+            self.print_divider()?;
+        }
+        Ok(())
     }
 
-    fn redraw(&mut self) -> CResult<()> {
+    fn redraw(&self) -> CResult<()> {
         self.draw()?;
         self.reprint_cursor()
     }
 
-    fn print_statusline(&mut self) -> CResult<()> {
+    fn print_statusline(&self) -> CResult<()> {
         let left_side = format!(
             "{name}{save_marker}",
             name = self.buffer.filename(),
@@ -277,6 +283,23 @@ impl Window {
             style::SetBackgroundColor(Color::DarkGrey),
             style::Print(format!("{left_side}{padding}{right_side}"))
         )
+    }
+
+    fn print_divider(&self) -> CResult<()> {
+        execute!(
+            stdout(),
+            cursor::MoveTo((self.loc.1 + self.width - 1) as u16, self.loc.0 as u16),
+            style::SetForegroundColor(Color::Black)
+        )?;
+        for _ in 0..self.height {
+            execute!(
+                stdout(),
+                style::Print("|"),
+                cursor::MoveDown(1),
+                cursor::MoveLeft(1)
+            )?;
+        }
+        Ok(())
     }
 
     pub fn load_file(&mut self, filename: String) -> CResult<()> {

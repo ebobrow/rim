@@ -15,7 +15,7 @@ fn main() -> Result<()> {
     let mut args = std::env::args();
     let _ = args.next().unwrap();
     if let Some(filename) = args.next() {
-        state.screen_mut().active_window().load_file(filename)?;
+        state.screen_mut().active_window_mut().load_file(filename)?;
     }
 
     // Loops until quit
