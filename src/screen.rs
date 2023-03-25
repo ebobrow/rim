@@ -65,7 +65,7 @@ impl Screen {
         &mut self.windows[self.cur_window]
     }
 
-    pub fn new_vertical_split(&mut self) -> Result<()> {
+    pub fn new_vertical_split(&mut self, filename: Option<String>) -> Result<()> {
         let half_width = self.active_window().width() / 2;
         let (width_a, width_b) = if self.active_window().width() % 2 == 0 {
             (half_width, half_width)
@@ -73,7 +73,7 @@ impl Screen {
             (half_width, half_width + 1)
         };
         self.active_window_mut().set_width(width_a);
-        let new_window = Window::new(
+        let mut new_window = Window::new(
             self.active_window().height(),
             width_b,
             (
@@ -81,12 +81,15 @@ impl Screen {
                 self.active_window().loc().1 + width_a,
             ),
         );
+        if let Some(filename) = filename {
+            new_window.load_file(filename)?;
+        }
         self.windows.push(new_window);
         self.cur_window = self.windows.len() - 1;
         self.draw()
     }
 
-    pub fn new_horizontal_split(&mut self) -> Result<()> {
+    pub fn new_horizontal_split(&mut self, filename: Option<String>) -> Result<()> {
         let half_height = self.active_window().height() / 2;
         let (height_a, height_b) = if self.active_window().height() % 2 == 0 {
             (half_height, half_height)
@@ -94,7 +97,7 @@ impl Screen {
             (half_height, half_height + 1)
         };
         self.active_window_mut().set_height(height_a);
-        let new_window = Window::new(
+        let mut new_window = Window::new(
             height_b - 1,
             self.active_window().width(),
             (
@@ -102,9 +105,19 @@ impl Screen {
                 self.active_window().loc().1,
             ),
         );
+        if let Some(filename) = filename {
+            new_window.load_file(filename)?;
+        }
         self.windows.push(new_window);
         self.cur_window = self.windows.len() - 1;
         self.draw()
+    }
+
+    pub fn load_file(&mut self, filename: Option<String>) -> Result<()> {
+        if let Some(filename) = filename {
+            self.active_window_mut().load_file(filename)?;
+        }
+        Ok(())
     }
 
     // TODO: lots of redundant logic here

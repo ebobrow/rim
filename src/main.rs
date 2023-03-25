@@ -4,6 +4,7 @@ use keys::keyhandler;
 use state::State;
 
 mod buffer;
+mod command;
 mod keys;
 mod screen;
 mod state;

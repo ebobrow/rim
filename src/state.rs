@@ -3,9 +3,10 @@ use std::{collections::HashMap, process::exit, rc::Rc};
 use crossterm::{cursor::SetCursorStyle, Result};
 
 use crate::{
+    command::Commands,
     keys::{
         self,
-        keyhandler::{new_keymap_trie, KeymapFn, KeymapTrie},
+        keyhandler::{new_keymap_trie, KeymapTrie},
     },
     screen::Screen,
 };
@@ -20,7 +21,7 @@ pub enum Mode {
 pub struct State {
     screen: Screen,
     keymaps: Rc<HashMap<Mode, KeymapTrie>>,
-    commands: Rc<HashMap<String, KeymapFn>>,
+    commands: Rc<Commands>,
     current_key_event: Vec<u8>,
     mode: Mode,
 }
@@ -35,18 +36,10 @@ macro_rules! keymaps {
 
 macro_rules! commands {
     ( $($key:literal => $f:expr),* $(,)? ) => {
-        new_hash_map(vec![
+        Commands::new(vec![
             $( ($key.to_string(), Box::new($f)) ),*
         ])
     };
-}
-
-pub fn new_hash_map(maps: Vec<(String, KeymapFn)>) -> HashMap<String, KeymapFn> {
-    let mut map = HashMap::new();
-    for (k, v) in maps {
-        map.insert(k, v);
-    }
-    map
 }
 
 impl State {
@@ -96,7 +89,6 @@ impl State {
                         // - r
                         // - u
                         b":" => |state| state.enter_command_mode(),
-                        // TODO: bug if you delete the last line
                         b"dd" => |state| state.screen_mut().active_window_mut().delete_line(),
                         b"cc" => |state| {
                             state.screen_mut().active_window_mut().change_line()?;
@@ -123,13 +115,13 @@ impl State {
                 ),
             ])),
             commands: Rc::new(commands! {
-                "w" => |state| state.screen_mut().write(),
+                "w" => |state, _| state.screen_mut().write(),
                 // TODO: warn about quitting without writing
-                "q" => |_| State::finish(),
-                "q!" => |_| State::finish(),
-                // TODO: e[dit]
-                "vne" => |state| state.screen_mut().new_vertical_split(),
-                "new" => |state| state.screen_mut().new_horizontal_split(),
+                "q" => |_, _| State::finish(),
+                "q!" => |_, _| State::finish(),
+                "vne" => |state, filename| state.screen_mut().new_vertical_split(filename),
+                "new" => |state, filename| state.screen_mut().new_horizontal_split(filename),
+                "e" => |state, filename| state.screen_mut().load_file(filename),
             }),
         })
     }
@@ -191,12 +183,12 @@ impl State {
     }
 
     pub fn enter_command(&mut self) -> Result<()> {
-        if let Some(f) = self
+        if let Some((f, arg)) = self
             .commands
             .clone()
             .get(self.screen_mut().get_curr_command())
         {
-            f(self)?;
+            f(self, arg)?;
         } else {
             let error_msg = format!("Unknown command `{}`", self.screen_mut().get_curr_command());
             self.screen_mut().set_error_message(error_msg)?;

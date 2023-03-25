@@ -80,6 +80,9 @@ impl Buffer {
 
     pub fn delete_line(&mut self, cursor: (usize, usize)) {
         self.lines.remove(cursor.0);
+        if self.lines.is_empty() {
+            self.lines.push(String::new());
+        }
     }
 
     pub fn change_line(&mut self, cursor: (usize, usize)) {
