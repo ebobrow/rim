@@ -21,7 +21,7 @@ this is a line of tezxxt writte n in Rim (don't haeve backspace implemented yet)
     - [ ] relative numbers
 - [x] editing
 - [ ] unit tests?
-- [ ] splits/windows
+- [x] splits/windows
 - [x] Status bar
 - [ ] internal dev thing but should all commands be routed through state? as in
   reexport so that you don't have to do `state.screen_mut().load_file()` but

@@ -11,8 +11,8 @@ use crossterm::{
 use crate::window::Window;
 
 pub struct Screen {
-    // TODO: once we have splits there will be multiples in some cool data structure
-    windows: Window,
+    windows: Vec<Window>,
+    cur_window: usize,
 
     command_mode_cursor: Option<usize>,
 
@@ -45,7 +45,8 @@ impl Screen {
         Self::setup()?;
 
         let mut screen = Self {
-            windows: Window::new(Screen::usable_rows(), Screen::cols()),
+            windows: vec![Window::new(Screen::usable_rows(), Screen::cols(), (0, 0))],
+            cur_window: 0,
             command_mode_cursor: None,
             message: String::new(),
             message_is_error: false,
@@ -56,7 +57,114 @@ impl Screen {
     }
 
     pub fn active_window(&mut self) -> &mut Window {
-        &mut self.windows
+        // TODO: error handling
+        &mut self.windows[self.cur_window]
+    }
+
+    pub fn new_vertical_split(&mut self) -> Result<()> {
+        let half_width = self.active_window().width() / 2;
+        let (width_a, width_b) = if self.active_window().width() % 2 == 0 {
+            (half_width, half_width)
+        } else {
+            (half_width, half_width + 1)
+        };
+        self.active_window().set_width(width_a);
+        let new_window = Window::new(
+            self.active_window().height(),
+            // TODO: vertical bar; `new_width - 1`
+            width_b,
+            (
+                self.active_window().loc().0,
+                self.active_window().loc().1 + width_a,
+            ),
+        );
+        self.windows.push(new_window);
+        self.cur_window = self.windows.len() - 1;
+        self.draw()
+    }
+
+    pub fn new_horizontal_split(&mut self) -> Result<()> {
+        let half_height = self.active_window().height() / 2;
+        let (height_a, height_b) = if self.active_window().height() % 2 == 0 {
+            (half_height, half_height)
+        } else {
+            (half_height, half_height + 1)
+        };
+        self.active_window().set_height(height_a);
+        let new_window = Window::new(
+            height_b - 1,
+            self.active_window().width(),
+            (
+                self.active_window().loc().0 + height_a + 1,
+                self.active_window().loc().1,
+            ),
+        );
+        self.windows.push(new_window);
+        self.cur_window = self.windows.len() - 1;
+        self.draw()
+    }
+
+    // TODO: lots of redundant logic here
+    pub fn move_to_left_window(&mut self) -> Result<()> {
+        let active_loc = self.active_window().loc();
+        if let Some((i, _)) = self
+            .windows
+            .iter()
+            .enumerate()
+            .filter(|(_, window)| window.loc().1 + window.width() == active_loc.1)
+            .min_by_key(|(_, window)| window.loc().0.abs_diff(active_loc.0))
+        {
+            self.cur_window = i;
+            self.reprint_cursor()?;
+        }
+        Ok(())
+    }
+
+    pub fn move_to_right_window(&mut self) -> Result<()> {
+        let active_loc = self.active_window().loc();
+        let active_width = self.active_window().width();
+        if let Some((i, _)) = self
+            .windows
+            .iter()
+            .enumerate()
+            .filter(|(_, window)| window.loc().1 == active_loc.1 + active_width)
+            .min_by_key(|(_, window)| window.loc().0.abs_diff(active_loc.0))
+        {
+            self.cur_window = i;
+            self.reprint_cursor()?;
+        }
+        Ok(())
+    }
+
+    pub fn move_to_up_window(&mut self) -> Result<()> {
+        let active_loc = self.active_window().loc();
+        if let Some((i, _)) = self
+            .windows
+            .iter()
+            .enumerate()
+            .filter(|(_, window)| window.loc().0 + window.height() + 1 == active_loc.0)
+            .min_by_key(|(_, window)| window.loc().1.abs_diff(active_loc.1))
+        {
+            self.cur_window = i;
+            self.reprint_cursor()?;
+        }
+        Ok(())
+    }
+
+    pub fn move_to_down_window(&mut self) -> Result<()> {
+        let active_loc = self.active_window().loc();
+        let active_height = self.active_window().height() + 1;
+        if let Some((i, _)) = self
+            .windows
+            .iter()
+            .enumerate()
+            .filter(|(_, window)| window.loc().0 == active_loc.0 + active_height)
+            .min_by_key(|(_, window)| window.loc().1.abs_diff(active_loc.1))
+        {
+            self.cur_window = i;
+            self.reprint_cursor()?;
+        }
+        Ok(())
     }
 
     pub fn set_cursor_shape(&mut self, shape: SetCursorStyle) -> Result<()> {
@@ -64,7 +172,9 @@ impl Screen {
     }
 
     fn draw(&mut self) -> Result<()> {
-        self.windows.draw()?;
+        for window in &mut self.windows {
+            window.draw()?;
+        }
         self.print_messageline()?;
         self.reprint_cursor()
     }
@@ -77,7 +187,7 @@ impl Screen {
                 cursor::Show
             )
         } else {
-            self.windows.reprint_cursor()
+            self.active_window().reprint_cursor()
         }
     }
 
@@ -122,7 +232,7 @@ impl Screen {
     }
 
     pub fn write(&mut self) -> Result<()> {
-        match self.windows.write() {
+        match self.active_window().write() {
             Ok(msg) => self.set_message(msg),
             Err(e) => self.set_error_message(e),
         }

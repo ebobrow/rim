@@ -101,6 +101,10 @@ impl State {
                             state.screen_mut().active_window().change_line()?;
                             state.enter_insert_mode()
                         },
+                        b" h" => |state| state.screen_mut().move_to_left_window(),
+                        b" l" => |state| state.screen_mut().move_to_right_window(),
+                        b" j" => |state| state.screen_mut().move_to_down_window(),
+                        b" k" => |state| state.screen_mut().move_to_up_window(),
                     },
                 ),
                 (
@@ -113,7 +117,7 @@ impl State {
                 (
                     Mode::Command,
                     keymaps! {
-                            &[keys::ESCAPE] => |state| state.leave_command_mode()
+                        &[keys::ESCAPE] => |state| state.leave_command_mode()
                     },
                 ),
             ])),
@@ -123,6 +127,8 @@ impl State {
                 "q" => |_| State::finish(),
                 "q!" => |_| State::finish(),
                 // TODO: e[dit]
+                "vne" => |state| state.screen_mut().new_vertical_split(),
+                "new" => |state| state.screen_mut().new_horizontal_split(),
             }),
         })
     }

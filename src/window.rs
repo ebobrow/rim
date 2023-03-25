@@ -17,12 +17,14 @@ pub struct Window {
     cursor: (usize, usize),
     offset: (usize, usize),
 
+    /// top left corner
+    loc: (usize, usize),
     height: usize,
     width: usize,
 }
 
 impl Window {
-    pub fn new(height: usize, width: usize) -> Self {
+    pub fn new(height: usize, width: usize, loc: (usize, usize)) -> Self {
         Self {
             // TODO: centered info screen
             buffer: Buffer::from_string(String::new()),
@@ -30,6 +32,7 @@ impl Window {
             offset: (0, 0),
             height,
             width,
+            loc,
         }
     }
 
@@ -61,10 +64,11 @@ impl Window {
     }
 
     pub fn reprint_cursor(&mut self) -> CResult<()> {
-        let col = self.cursor_col() + SIDEBAR_LEN + 1;
+        let row = self.cursor_row() + self.loc.0;
+        let col = self.cursor_col() + self.loc.1 + SIDEBAR_LEN + 1;
         execute!(
             stdout(),
-            cursor::MoveTo(col as u16, self.cursor_row() as u16),
+            cursor::MoveTo(col as u16, row as u16),
             cursor::Show
         )
     }
@@ -198,7 +202,7 @@ impl Window {
         execute!(
             stdout(),
             cursor::Hide,
-            cursor::MoveTo(0, 0),
+            cursor::MoveTo(self.loc.1 as u16, self.loc.0 as u16),
             style::ResetColor,
         )?;
         let mut num_lines = 0;
@@ -226,7 +230,7 @@ impl Window {
                 style::Print(format!("{linenum_padding}{linenum} ")),
                 style::ResetColor,
                 style::Print(formatted_line),
-                cursor::MoveToColumn(0),
+                cursor::MoveToColumn(self.loc.1 as u16),
                 cursor::MoveDown(1)
             )?;
         }
@@ -235,7 +239,7 @@ impl Window {
                 stdout(),
                 style::SetForegroundColor(Color::DarkGrey),
                 style::Print(format!("~{}", " ".repeat(self.width - 1))),
-                cursor::MoveToColumn(0),
+                cursor::MoveToColumn(self.loc.1 as u16),
                 cursor::MoveDown(1)
             )?;
         }
@@ -322,5 +326,25 @@ impl Window {
             Ok(()) => Ok(format!("\"{}\" written", self.buffer.filename())),
             Err(e) => Err(e),
         }
+    }
+
+    pub fn height(&self) -> usize {
+        self.height
+    }
+
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    pub fn set_height(&mut self, height: usize) {
+        self.height = height;
+    }
+
+    pub fn set_width(&mut self, width: usize) {
+        self.width = width;
+    }
+
+    pub fn loc(&self) -> (usize, usize) {
+        self.loc
     }
 }
