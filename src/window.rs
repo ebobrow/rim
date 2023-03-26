@@ -3,7 +3,7 @@ use std::{cmp::min, io::stdout};
 use crossterm::{
     cursor, execute,
     style::{self, Color},
-    terminal, Result as CResult,
+    Result as CResult,
 };
 
 use crate::buffer::Buffer;
@@ -346,6 +346,13 @@ impl Window {
         }
     }
 
+    pub fn write_to_filename(&mut self, filename: String) -> Result<String, String> {
+        match self.buffer.write_to_filename(filename) {
+            Ok(()) => Ok(format!("\"{}\" written", self.buffer.filename())),
+            Err(e) => Err(e),
+        }
+    }
+
     pub fn height(&self) -> usize {
         self.height
     }
@@ -364,5 +371,9 @@ impl Window {
 
     pub fn loc(&self) -> (usize, usize) {
         self.loc
+    }
+
+    pub fn unsaved_changes(&self) -> bool {
+        self.buffer.unsaved_changes()
     }
 }

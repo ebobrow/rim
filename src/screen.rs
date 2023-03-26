@@ -258,6 +258,13 @@ impl Screen {
         }
     }
 
+    pub fn write_to_filename(&mut self, filename: String) -> Result<()> {
+        match self.active_window_mut().write_to_filename(filename) {
+            Ok(msg) => self.set_message(msg),
+            Err(e) => self.set_error_message(e),
+        }
+    }
+
     pub fn set_message(&mut self, message: impl ToString) -> Result<()> {
         self.message = message.to_string();
         self.message_is_error = false;

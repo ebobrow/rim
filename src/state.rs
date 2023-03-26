@@ -115,10 +115,37 @@ impl State {
                 ),
             ])),
             commands: Rc::new(commands! {
-                "w" => |state, _| state.screen_mut().write(),
-                // TODO: warn about quitting without writing
-                "q" => |_, _| State::finish(),
-                "q!" => |_, _| State::finish(),
+                "w" => |state, arg| {
+                    if let Some(arg) = arg {
+                        state.screen_mut().write_to_filename(arg)
+                    } else {
+                        state.screen_mut().write()
+                    }
+                },
+                "q" => |state, arg| {
+                    if let Some(arg) = arg {
+                        state.screen_mut().set_error_message(format!("unexpeted chars: `{}`", arg))
+                    } else if state.screen_mut().active_window().unsaved_changes() {
+                        state.screen_mut().set_error_message("no write since last change")
+                    } else {
+                        State::finish()
+                    }
+                },
+                "q!" => |state, arg| {
+                    if let Some(arg) = arg {
+                        state.screen_mut().set_error_message(format!("unexpeted chars: `{}`", arg))
+                    } else {
+                        State::finish()
+                    }
+                },
+                "wq" => |state, arg| {
+                    if let Some(arg) = arg {
+                        state.screen_mut().set_error_message(format!("unexpeted chars: `{}`", arg))
+                    } else {
+                        state.screen_mut().write()?;
+                        State::finish()
+                    }
+                },
                 "vne" => |state, filename| state.screen_mut().new_vertical_split(filename),
                 "new" => |state, filename| state.screen_mut().new_horizontal_split(filename),
                 "e" => |state, filename| state.screen_mut().load_file(filename),

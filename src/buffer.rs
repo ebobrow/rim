@@ -120,6 +120,19 @@ impl Buffer {
         Ok(())
     }
 
+    pub fn write_to_filename(&mut self, filename: String) -> Result<(), String> {
+        let file = File::options()
+            .write(true)
+            .read(true)
+            .create(true)
+            .open(filename.clone())
+            .unwrap();
+        self.terminal_newline = true;
+        self.filename = filename;
+        self.handle = Some(file);
+        self.write()
+    }
+
     pub fn filename(&self) -> &str {
         self.filename.as_ref()
     }
