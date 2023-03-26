@@ -215,11 +215,11 @@ impl Window {
         {
             num_lines += 1;
             let formatted_line = if line.len() < self.offset_col() {
-                " ".repeat(self.usable_cols())
+                " ".repeat(self.usable_cols() - 1)
             } else if line[self.offset_col()..].len() > self.usable_cols() {
-                line[self.offset_col()..self.usable_cols()].to_owned()
+                line[self.offset_col()..self.usable_cols() - 1].to_owned()
             } else {
-                let padding = " ".repeat(self.usable_cols() - line[self.offset_col()..].len());
+                let padding = " ".repeat(self.usable_cols() - 1 - line[self.offset_col()..].len());
                 format!("{}{padding}", &line[self.offset_col()..])
             };
             let linenum = format!("{}", self.offset_row() + num_lines);
@@ -230,8 +230,6 @@ impl Window {
                 style::Print(format!("{linenum_padding}{linenum} ")),
                 style::ResetColor,
                 style::Print(formatted_line),
-                // style::SetForegroundColor(Color::Black),
-                // style::Print("|"),
                 cursor::MoveToColumn(self.loc.1 as u16),
                 cursor::MoveDown(1)
             )?;
@@ -240,16 +238,12 @@ impl Window {
             execute!(
                 stdout(),
                 style::SetForegroundColor(Color::DarkGrey),
-                style::Print(format!("~{}", " ".repeat(self.width - 1))),
+                style::Print(format!("~{}", " ".repeat(self.width - 2))),
                 cursor::MoveToColumn(self.loc.1 as u16),
                 cursor::MoveDown(1)
             )?;
         }
-        self.print_statusline()?;
-        if self.loc.1 + self.width < terminal::size().unwrap().0 as usize {
-            self.print_divider()?;
-        }
-        Ok(())
+        self.print_statusline()
     }
 
     fn redraw(&self) -> CResult<()> {
@@ -285,11 +279,12 @@ impl Window {
         )
     }
 
-    fn print_divider(&self) -> CResult<()> {
+    pub fn print_divider(&self) -> CResult<()> {
         execute!(
             stdout(),
             cursor::MoveTo((self.loc.1 + self.width - 1) as u16, self.loc.0 as u16),
-            style::SetForegroundColor(Color::Black)
+            style::SetForegroundColor(Color::Black),
+            style::SetBackgroundColor(Color::DarkGrey)
         )?;
         for _ in 0..self.height {
             execute!(

@@ -85,8 +85,10 @@ impl Screen {
             new_window.load_file(filename)?;
         }
         self.windows.push(new_window);
+        self.draw()?;
+        self.active_window().print_divider()?;
         self.cur_window = self.windows.len() - 1;
-        self.draw()
+        Ok(())
     }
 
     pub fn new_horizontal_split(&mut self, filename: Option<String>) -> Result<()> {
