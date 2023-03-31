@@ -4,10 +4,7 @@ use crossterm::{cursor::SetCursorStyle, Result};
 
 use crate::{
     command::Commands,
-    keys::{
-        self,
-        keyhandler::{new_keymap_trie, KeymapTrie},
-    },
+    keys::keyhandler::{new_keymap_trie, Key, KeymapTrie},
     screen::Screen,
 };
 
@@ -22,7 +19,7 @@ pub struct State {
     screen: Screen,
     keymaps: Rc<HashMap<Mode, KeymapTrie>>,
     commands: Rc<Commands>,
-    current_key_event: Vec<u8>,
+    current_key_event: Vec<Key>,
     mode: Mode,
 }
 
@@ -52,65 +49,65 @@ impl State {
                 (
                     Mode::Normal,
                     keymaps! {
-                        b"h" => |state| state.screen_mut().active_window_mut().move_cursor_col(-1),
-                        b"j" => |state| state.screen_mut().active_window_mut().move_cursor_row(1),
-                        b"k" => |state| state.screen_mut().active_window_mut().move_cursor_row(-1),
-                        b"l" => |state| state.screen_mut().active_window_mut().move_cursor_col(1),
-                        b"ZQ" => |_| State::finish(),
-                        b"ZZ" => |state| {
+                        "h" => |state| state.screen_mut().active_window_mut().move_cursor_col(-1),
+                        "j" => |state| state.screen_mut().active_window_mut().move_cursor_row(1),
+                        "k" => |state| state.screen_mut().active_window_mut().move_cursor_row(-1),
+                        "l" => |state| state.screen_mut().active_window_mut().move_cursor_col(1),
+                        "ZQ" => |_| State::finish(),
+                        "ZZ" => |state| {
                             state.screen_mut().write()?;
                             State::finish()
                         },
-                        b"i" => |state| state.enter_insert_mode(),
-                        b"I" => |state| {
+                        "i" => |state| state.enter_insert_mode(),
+                        "I" => |state| {
                             state.screen_mut().active_window_mut().zero_cursor_col()?;
                             state.enter_insert_mode()
                         },
-                        b"a" => |state| {
+                        "a" => |state| {
                             state.enter_insert_mode()?;
                             state.screen_mut().active_window_mut().move_cursor_col(1)
                         },
-                        b"A" => |state| {
+                        "A" => |state| {
                             state.enter_insert_mode()?;
                             state.screen_mut().active_window_mut().move_cursor_end_of_line()
                         },
-                        b"o" => |state| {
+                        "o" => |state| {
                             state.screen_mut().active_window_mut().new_line_below()?;
                             state.enter_insert_mode()
                         },
-                        b"O" => |state| {
+                        "O" => |state| {
                             state.screen_mut().active_window_mut().new_line_above()?;
                             state.enter_insert_mode()
                         },
-                        b"$" => |state| state.screen_mut().active_window_mut().move_cursor_end_of_line(),
-                        b"0" => |state| state.screen_mut().active_window_mut().zero_cursor_col(),
+                        "$" => |state| state.screen_mut().active_window_mut().move_cursor_end_of_line(),
+                        "0" => |state| state.screen_mut().active_window_mut().zero_cursor_col(),
                         // TODO: `_` (start of text)
                         // - `gg`, `G`, 10G
                         // - r
                         // - u
-                        b":" => |state| state.enter_command_mode(),
-                        b"dd" => |state| state.screen_mut().active_window_mut().delete_line(),
-                        b"cc" => |state| {
+                        ":" => |state| state.enter_command_mode(),
+                        "dd" => |state| state.screen_mut().active_window_mut().delete_line(),
+                        "cc" => |state| {
                             state.screen_mut().active_window_mut().change_line()?;
                             state.enter_insert_mode()
                         },
-                        b" h" => |state| state.screen_mut().move_to_left_window(),
-                        b" l" => |state| state.screen_mut().move_to_right_window(),
-                        b" j" => |state| state.screen_mut().move_to_down_window(),
-                        b" k" => |state| state.screen_mut().move_to_up_window(),
+                        "<space>h" => |state| state.screen_mut().move_to_left_window(),
+                        "<space>l" => |state| state.screen_mut().move_to_right_window(),
+                        "<space>j" => |state| state.screen_mut().move_to_down_window(),
+                        "<space>k" => |state| state.screen_mut().move_to_up_window(),
                     },
                 ),
                 (
                     Mode::Insert,
                     keymaps! {
-                        b"jk" => |state| state.enter_normal_mode(),
-                        &[keys::ESCAPE] => |state| state.enter_normal_mode()
+                        "jk" => |state| state.enter_normal_mode(),
+                        "<Esc>" => |state| state.enter_normal_mode()
                     },
                 ),
                 (
                     Mode::Command,
                     keymaps! {
-                        &[keys::ESCAPE] => |state| state.leave_command_mode()
+                        "<Esc>" => |state| state.leave_command_mode()
                     },
                 ),
             ])),
@@ -146,6 +143,7 @@ impl State {
                         State::finish()
                     }
                 },
+                // TODO: qa (the others should only quit one window)
                 "vne" => |state, filename| state.screen_mut().new_vertical_split(filename),
                 "new" => |state, filename| state.screen_mut().new_horizontal_split(filename),
                 "e" => |state, filename| state.screen_mut().load_file(filename),
@@ -170,7 +168,7 @@ impl State {
         &self.mode
     }
 
-    pub fn current_key_event(&self) -> &[u8] {
+    pub fn current_key_event(&self) -> &[Key] {
         self.current_key_event.as_ref()
     }
 
@@ -178,11 +176,11 @@ impl State {
         self.current_key_event = Vec::new();
     }
 
-    pub fn append_current_key_event(&mut self, c: u8) {
+    pub fn append_current_key_event(&mut self, c: Key) {
         self.current_key_event.push(c);
     }
 
-    pub fn set_current_key_event(&mut self, key: Vec<u8>) {
+    pub fn set_current_key_event(&mut self, key: Vec<Key>) {
         self.current_key_event = key;
     }
 

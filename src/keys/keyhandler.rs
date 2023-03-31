@@ -9,13 +9,73 @@ use super::trie::{FetchResult, Trie};
 
 pub type KeymapFn = Box<dyn Fn(&mut State) -> Result<()>>;
 
-// TODO: modifiers
-pub type KeymapTrie = Trie<u8, KeymapFn>;
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub struct Key {
+    pub(crate) code: KeyCode,
+    pub(crate) modifiers: KeyModifiers,
+}
 
-pub fn new_keymap_trie(maps: Vec<(&[u8], KeymapFn)>) -> KeymapTrie {
+impl Key {
+    pub fn char(c: char) -> Self {
+        Self {
+            code: KeyCode::Char(c),
+            modifiers: KeyModifiers::empty(),
+        }
+    }
+}
+
+pub type KeymapTrie = Trie<Key, KeymapFn>;
+
+pub fn str_to_keys(s: &str) -> Vec<Key> {
+    let mut keys = Vec::new();
+    let mut i = 0;
+    while i < s.len() {
+        let c = s.chars().nth(i).unwrap();
+        if c == '<' {
+            let closing = s
+                .chars()
+                .enumerate()
+                .skip(i)
+                .find(|&(_, c)| c == '>')
+                .unwrap()
+                .0;
+            let substr = &s[i + 1..closing];
+            let key = match substr {
+                "space" => Key::char(' '),
+                "CR" => Key {
+                    code: KeyCode::Enter,
+                    modifiers: KeyModifiers::empty(),
+                },
+                "BS" => Key {
+                    code: KeyCode::Backspace,
+                    modifiers: KeyModifiers::empty(),
+                },
+                "Esc" => Key {
+                    code: KeyCode::Esc,
+                    modifiers: KeyModifiers::empty(),
+                },
+                _ => {
+                    assert!(substr.starts_with("C-"));
+                    Key {
+                        code: KeyCode::Char(substr.chars().nth(2).unwrap()),
+                        modifiers: KeyModifiers::CONTROL,
+                    }
+                }
+            };
+            i = closing;
+            keys.push(key);
+        } else {
+            keys.push(Key::char(c));
+        }
+        i += 1;
+    }
+    keys
+}
+
+pub fn new_keymap_trie(maps: Vec<(&str, KeymapFn)>) -> KeymapTrie {
     let mut trie = Trie::new();
     for (k, v) in maps {
-        trie.insert(k.to_vec(), v);
+        trie.insert(str_to_keys(k), v);
     }
     trie
 }
@@ -33,9 +93,9 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
     if key_event.modifiers.intersects(KeyModifiers::CONTROL) {
         return Ok(());
     }
-    let c = match key_event.code {
-        KeyCode::Backspace => super::BACKSPACE,
-        KeyCode::Enter => b'\n',
+    match key_event.code {
+        KeyCode::Backspace => {}
+        KeyCode::Enter => {}
         KeyCode::Left => {
             if let Mode::Command = state.mode() {
                 state.screen_mut().command_move_cursor(-1)?;
@@ -66,9 +126,9 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
             }
             return Ok(());
         }
-        KeyCode::Tab => super::TAB,
-        KeyCode::Char(c) => c as u8,
-        KeyCode::Esc => super::ESCAPE,
+        KeyCode::Tab => {}
+        KeyCode::Char(_) => {}
+        KeyCode::Esc => {}
 
         // I don't think I care about any of these
         KeyCode::Home
@@ -93,27 +153,33 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
         }
     };
     if let Mode::Insert = state.mode() {
-        match c {
-            super::TAB => {
+        match key_event.code {
+            KeyCode::Tab => {
                 for _ in 0..4 {
                     state.screen_mut().active_window_mut().type_char(' ')?;
                 }
             }
-            super::BACKSPACE => state.screen_mut().active_window_mut().delete_chars(1)?,
-            _ => state
+            KeyCode::Backspace => state.screen_mut().active_window_mut().delete_chars(1)?,
+            KeyCode::Enter => state.screen_mut().active_window_mut().type_char('\n')?,
+            KeyCode::Char(c) => state
                 .screen_mut()
                 .active_window_mut()
                 .type_char(c as char)?,
+            _ => {}
         }
     } else if let Mode::Command = state.mode() {
-        match c {
-            super::TAB => {}
-            super::BACKSPACE => state.screen_mut().command_delete_char()?,
-            b'\n' => state.enter_command()?,
-            _ => state.screen_mut().command_type_char(c as char)?,
+        match key_event.code {
+            KeyCode::Tab => {}
+            KeyCode::Backspace => state.screen_mut().command_delete_char()?,
+            KeyCode::Enter => state.enter_command()?,
+            KeyCode::Char(c) => state.screen_mut().command_type_char(c as char)?,
+            _ => {}
         }
     }
-    state.append_current_key_event(c);
+    state.append_current_key_event(Key {
+        code: key_event.code,
+        modifiers: key_event.modifiers.difference(KeyModifiers::SHIFT),
+    });
     match state
         .keymaps()
         .get(state.mode())

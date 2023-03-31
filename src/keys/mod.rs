@@ -1,6 +1,20 @@
 pub mod keyhandler;
 mod trie;
 
-pub const BACKSPACE: u8 = 8;
-pub const TAB: u8 = 9;
-pub const ESCAPE: u8 = 27;
+#[cfg(test)]
+mod tests {
+    use crossterm::event::{KeyCode, KeyModifiers};
+
+    use crate::keys::keyhandler::{str_to_keys, Key};
+
+    #[test]
+    fn str_to_keys_works() {
+        assert_eq!(
+            str_to_keys("<Esc>"),
+            vec![Key {
+                code: KeyCode::Esc,
+                modifiers: KeyModifiers::empty()
+            }]
+        );
+    }
+}
