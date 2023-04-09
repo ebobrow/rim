@@ -18,7 +18,7 @@ this is a line of tezxxt writte n in Rim (don't haeve backspace implemented yet)
     - [ ] async for stream stuff? or at least buffered read?
 - [x] Is there a way to gracefully exit on panic?
 - [x] Line numbers
-    - [ ] relative numbers
+    - [x] relative numbers
 - [x] editing
 - [ ] unit tests?
 - [x] splits/windows

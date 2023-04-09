@@ -205,6 +205,7 @@ impl Window {
             cursor::MoveTo(self.loc.1 as u16, self.loc.0 as u16),
             style::ResetColor,
         )?;
+        let cur_line = self.offset_row() + self.cursor_row();
         let mut num_lines = 0;
         for line in self
             .buffer
@@ -222,11 +223,19 @@ impl Window {
                 let padding = " ".repeat(self.usable_cols() - 1 - line[self.offset_col()..].len());
                 format!("{}{padding}", &line[self.offset_col()..])
             };
-            let linenum = format!("{}", self.offset_row() + num_lines);
+            let absolute_linenum = self.offset_row() + num_lines - 1;
+            let (linenum, color) = if absolute_linenum == cur_line {
+                (format!("{}", cur_line + 1), Color::White)
+            } else {
+                (
+                    format!("{}", cur_line.abs_diff(absolute_linenum)),
+                    Color::DarkGrey,
+                )
+            };
             let linenum_padding = " ".repeat(SIDEBAR_LEN - linenum.len());
             execute!(
                 stdout(),
-                style::SetForegroundColor(Color::DarkGrey),
+                style::SetForegroundColor(color),
                 style::Print(format!("{linenum_padding}{linenum} ")),
                 style::ResetColor,
                 style::Print(formatted_line),

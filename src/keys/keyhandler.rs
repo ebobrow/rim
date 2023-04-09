@@ -161,10 +161,7 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
             }
             KeyCode::Backspace => state.screen_mut().active_window_mut().delete_chars(1)?,
             KeyCode::Enter => state.screen_mut().active_window_mut().type_char('\n')?,
-            KeyCode::Char(c) => state
-                .screen_mut()
-                .active_window_mut()
-                .type_char(c as char)?,
+            KeyCode::Char(c) => state.screen_mut().active_window_mut().type_char(c)?,
             _ => {}
         }
     } else if let Mode::Command = state.mode() {
@@ -172,7 +169,7 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
             KeyCode::Tab => {}
             KeyCode::Backspace => state.screen_mut().command_delete_char()?,
             KeyCode::Enter => state.enter_command()?,
-            KeyCode::Char(c) => state.screen_mut().command_type_char(c as char)?,
+            KeyCode::Char(c) => state.screen_mut().command_type_char(c)?,
             _ => {}
         }
     }
