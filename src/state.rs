@@ -1,6 +1,12 @@
 use std::{collections::HashMap, process::exit, rc::Rc};
 
 use crossterm::{cursor::SetCursorStyle, Result};
+use futures::stream::FuturesUnordered;
+use tokio::{
+    spawn,
+    task::JoinHandle,
+    time::{sleep, Duration},
+};
 
 use crate::{
     command::Commands,
@@ -15,12 +21,17 @@ pub enum Mode {
     Command,
 }
 
+pub enum Command {
+    ClearCurrentKeyEvent,
+}
+
 pub struct State {
     screen: Screen,
     keymaps: Rc<HashMap<Mode, KeymapTrie>>,
     commands: Rc<Commands>,
     current_key_event: Vec<Key>,
     mode: Mode,
+    queue: FuturesUnordered<JoinHandle<Command>>,
 }
 
 macro_rules! keymaps {
@@ -45,6 +56,7 @@ impl State {
             screen: Screen::new()?,
             mode: Mode::Normal,
             current_key_event: Vec::new(),
+            queue: FuturesUnordered::new(),
             keymaps: Rc::new(HashMap::from([
                 (
                     Mode::Normal,
@@ -181,6 +193,9 @@ impl State {
     }
 
     pub fn append_current_key_event(&mut self, c: Key) {
+        if self.current_key_event.is_empty() {
+            self.push_queue(Duration::from_secs(1), Command::ClearCurrentKeyEvent);
+        }
         self.current_key_event.push(c);
     }
 
@@ -223,5 +238,16 @@ impl State {
             self.screen_mut().set_error_message(error_msg)?;
         }
         self.leave_command_mode()
+    }
+
+    pub fn push_queue(&mut self, duration: Duration, cmd: Command) {
+        self.queue.push(spawn(async move {
+            sleep(duration).await;
+            cmd
+        }));
+    }
+
+    pub fn queue(&mut self) -> &mut FuturesUnordered<JoinHandle<Command>> {
+        &mut self.queue
     }
 }

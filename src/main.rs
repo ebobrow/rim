@@ -10,7 +10,8 @@ mod screen;
 mod state;
 mod window;
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let mut state = State::init()?;
 
     let mut args = std::env::args();
@@ -20,5 +21,5 @@ fn main() -> Result<()> {
     }
 
     // Loops until quit
-    keyhandler::watch(&mut state)
+    keyhandler::watch(&mut state).await
 }

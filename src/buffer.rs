@@ -7,8 +7,6 @@ pub struct Buffer {
     lines: Vec<String>,
     handle: Option<File>,
     filename: String,
-
-    // TODO: don't trigger if you typed j and hten triggered jk macro
     unsaved_changes: bool,
     terminal_newline: bool,
 }

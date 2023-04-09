@@ -1,9 +1,13 @@
+use std::{future::poll_fn, task::Poll, time::Duration};
+
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     Result,
 };
+use futures::StreamExt;
+use tokio::select;
 
-use crate::state::{Mode, State};
+use crate::state::{Command, Mode, State};
 
 use super::trie::{FetchResult, Trie};
 
@@ -80,13 +84,40 @@ pub fn new_keymap_trie(maps: Vec<(&str, KeymapFn)>) -> KeymapTrie {
     trie
 }
 
-pub fn watch(state: &mut State) -> Result<()> {
+fn async_read_event(_cx: &mut std::task::Context<'_>) -> Poll<Result<Event>> {
+    // TODO: this is weird?? why do we have to block??
+    match event::poll(Duration::from_secs(1)) {
+        Ok(true) => Poll::Ready(event::read()),
+        _ => Poll::Pending,
+    }
+}
+
+pub async fn watch(state: &mut State) -> Result<()> {
+    let mut read_event = poll_fn(async_read_event);
     loop {
-        // TODO: other events like screen resize
-        if let Event::Key(key_event) = event::read()? {
-            handle_key_event(key_event, state)?;
+        select! {
+            event = &mut read_event => {
+                // TODO: other events like screen resize
+                if let Ok(Event::Key(key_event)) = event {
+                    handle_key_event(key_event, state)?;
+                }
+            }
+            cmd = state.queue().next() => {
+                if let Some(Ok(cmd)) = cmd {
+                    dispatch_cmd(state, cmd)?;
+                }
+            }
         }
     }
+}
+
+fn dispatch_cmd(state: &mut State, cmd: Command) -> Result<()> {
+    match cmd {
+        // TODO: something is not right here but i dont know what :\
+        Command::ClearCurrentKeyEvent => state.clear_current_key_event(),
+    }
+
+    Ok(())
 }
 
 fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
@@ -185,8 +216,8 @@ fn handle_key_event(key_event: KeyEvent, state: &mut State) -> Result<()> {
     {
         FetchResult::Some((i, f)) => {
             if let Mode::Insert = state.mode() {
-                // TODO: also clear current key event after like a second and don't move cursor
-                //       forward if current key event has something but then do move forward
+                // TODO: clear current key event after like a second and don't move cursor forward
+                //       if current key event has something but then do move forward
                 //       after you clear it
                 //     - just like a timeout but I'm worried about race conditions
                 //     - and display the char differently so it's clear it's pending completion
