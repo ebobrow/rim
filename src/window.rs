@@ -161,6 +161,14 @@ impl Window {
         self.move_cursor_col(0 - self.offset_col() as isize - self.cursor_col() as isize)
     }
 
+    pub fn zero_cursor_row(&mut self) -> CResult<()> {
+        self.set_cursor_row(0)
+    }
+
+    pub fn maximize_cursor_row(&mut self) -> CResult<()> {
+        self.set_cursor_row(self.buffer.lines().len() - 1)
+    }
+
     pub fn set_cursor_col(&mut self, col: usize) -> CResult<()> {
         self.cursor.1 = col;
         self.validate_cursor()?;

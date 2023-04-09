@@ -82,9 +82,13 @@ impl State {
                         "$" => |state| state.screen_mut().active_window_mut().move_cursor_end_of_line(),
                         "0" => |state| state.screen_mut().active_window_mut().zero_cursor_col(),
                         // TODO: `_` (start of text)
-                        // - `gg`, `G`, 10G
+                        // - 10G
+                        //      - allow for numbers at the start of a command and strip them out
+                        //      and then repeat (but special case for this one)
                         // - r
                         // - u
+                        "gg" => |state| state.screen_mut().active_window_mut().zero_cursor_row(),
+                        "G" => |state| state.screen_mut().active_window_mut().maximize_cursor_row(),
                         ":" => |state| state.enter_command_mode(),
                         "dd" => |state| state.screen_mut().active_window_mut().delete_line(),
                         "cc" => |state| {
